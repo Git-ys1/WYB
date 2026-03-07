@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.5E-R1 Main Recovery + Experiment Isolation
+- [ ] `E1-REVERT`: `main` 已执行 `revert c9ca804`，固定 smoke 页恢复。
+- [ ] `E1-BUILD`: Clean + Build 通过，产出 `Debug/WYB.hex`。
+- [ ] `E1-BASELINE`: 上电显示固定 ADC 页（`RAW / MV / VDDA / STAT`）。
+- [ ] `E1-STABLE-5MIN`: 连续 5 分钟无黑屏/花屏。
+- [ ] `E1-ADC-2PT`: `PC0->GND/3.3V` 两点趋势正确。
+- [ ] `E1-FALLBACK`: 实验路径 presenter 失败时可见 fallback 页面，不永久黑屏。
+- [ ] `E1-DEFAULT`: `main` 默认 `APP_MENU_REINTEGRATION_EXPERIMENT=0`（不开菜单实验）。
+- [ ] `E1-BRANCH`: 菜单重构迁入 `exp/menu-shell-r2b` 并已推送。
+
 ## T-1.1.5D-R0 Rollback Smoke Baseline
 - [ ] `D0-BOOT`: 固定文本页 `OLED TXT OK / RAW / MV / VDDA / STAT` 恢复显示。
 - [ ] `D0-CHAR`: `V/W/X/Y/Z` 显示完整无缺字。

@@ -60,6 +60,16 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `RAW / MV / VDDA / STAT`（ADC1/PC0 bring-up 调试页）
 - 即使 ADC 异常，OLED 继续刷新并显示 `STAT: ERRn`，不进入错误死循环。
 
+## T-1.1.5E-R1 主分支稳定策略（冻结）
+- 主分支默认固定为可见 smoke 基线，避免再次黑屏锁死：
+  - `APP_MENU_REINTEGRATION_EXPERIMENT=0`
+  - `APP_SMOKE_OLED_TEST=1`
+- 仅当 `APP_MENU_REINTEGRATION_EXPERIMENT=1` 时，才允许走菜单回接实验路径。
+- 实验路径中的 presenter 已改为“失败不永久锁死”语义：
+  - flush 连续失败时显示固定 fallback 页
+  - fallback 文本：`OLED FALLBACK / ERR: EX3 / USE SMOKE BASE / CHECK EXP SWITCH`
+- 菜单重构工作从主分支剥离到实验分支：`exp/menu-shell-r2b`。
+
 ## 冻结引脚映射
 - OLED I2C2：`PC4(SCL), PA8(SDA)`
 - ADC 输入：`PC0 (ADC12_IN6)`

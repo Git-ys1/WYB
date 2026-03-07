@@ -36,8 +36,18 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+/* Main branch default:
+ * - APP_MENU_REINTEGRATION_EXPERIMENT=0: stable OLED/ADC smoke baseline
+ * - APP_MENU_REINTEGRATION_EXPERIMENT=1: allow app/menu experiment path
+ */
+#define APP_MENU_REINTEGRATION_EXPERIMENT 0
+
 /* APP_SMOKE_OLED_TEST=1 -> OLED-only smoke, APP_SMOKE_LED_TEST=1 -> LED-only smoke, both 0 -> normal app */
+#if APP_MENU_REINTEGRATION_EXPERIMENT
+#define APP_SMOKE_OLED_TEST 0
+#else
 #define APP_SMOKE_OLED_TEST 1
+#endif
 #define APP_SMOKE_LED_TEST 0
 
 #define OLED_SMOKE_FORCE_PROFILE OLED_PROFILE_SSD1315_PAGE

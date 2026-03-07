@@ -1,9 +1,9 @@
 #include "app.h"
 #include "app_heartbeat.h"
 
-/* T-1.1.5D-R0 rollback note:
- * Display path is temporarily owned by main.c OLED smoke entry.
- * app.c is kept for later staged reintegration and is not active when APP_SMOKE_OLED_TEST=1.
+/* T-1.1.5E-R1 note:
+ * Main branch defaults to smoke display baseline in main.c.
+ * Menu reintegration stays behind APP_MENU_REINTEGRATION_EXPERIMENT and is developed on exp branches.
  */
 
 #include <stdbool.h>
