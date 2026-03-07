@@ -145,3 +145,15 @@ git push
 3. 本地实验硬退：`git reset --hard HEAD~1`
 
 详细流程见 [docs/git_workflow.md](/F:/CodeForge/STM32CubeIDE_2.1.0/WorkSpace3/WYB/docs/git_workflow.md)。
+
+## T-1.1.5-R2 单写者菜单回接规则
+- 本轮默认 `APP_SMOKE_OLED_TEST=0`，恢复 `bsp_init/app_init/superloop` 入口。
+- 显示链路采用单写者：
+  - 唯一显示输出函数：`app_ui_presenter_flush()`
+  - 菜单页和 DEBUG/ADC 页都通过 presenter 输出
+  - 禁止 `main.c` smoke 绘屏路径与 `app.c` 菜单路径混跑
+- OLED 低层参数继续冻结：`SSD1315 + HW I2C2@100k + page mode + 16B chunk`
+- 本轮不启用 Soft-I2C / recover 状态机 / dirty flush。
+- `app_measure_tick()` 为懒启动门控：
+  - 仅当 `menu_level == MENU_L4_RES_RUN && meas_run_enabled == true` 才允许测量执行
+  - 本轮不进入 RUN 页，因此浏览阶段不会自动启动测量

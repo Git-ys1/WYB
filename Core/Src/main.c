@@ -37,7 +37,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 /* APP_SMOKE_OLED_TEST=1 -> OLED-only smoke, APP_SMOKE_LED_TEST=1 -> LED-only smoke, both 0 -> normal app */
-#define APP_SMOKE_OLED_TEST 1
+#define APP_SMOKE_OLED_TEST 0
 #define APP_SMOKE_LED_TEST 0
 
 #define OLED_SMOKE_FORCE_PROFILE OLED_PROFILE_SSD1315_PAGE

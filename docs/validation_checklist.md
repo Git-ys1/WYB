@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.5-R2 Staged Menu Shell Reintegration
+- [ ] `R2-01`: 上电进入菜单首页，连续 5 分钟无花屏/黑屏。
+- [ ] `R2-02`: 六键导航正常（UP/DOWN/LEFT/RIGHT/OK/BACK）。
+- [ ] `R2-03`: Step-1 页面稳定（L1 首页、L2 DEBUG、L2 MEASURE 可进退）。
+- [ ] `R2-04`: Step-2 页面稳定（RES/VDC/FREQ/CONT/DIODE 可浏览，不运行）。
+- [ ] `R2-05`: Step-3 页面稳定（L3 量程 + L4 RES READY 占位页正常）。
+- [ ] `R2-06`: DEBUG/ADC 子页稳定更新 `RAW/MV/VDDA/STAT`。
+- [ ] `R2-07`: 未进入 RUN 页前，测量任务不自动启动。
+- [ ] `R2-08`: 全工程仅 presenter 路径调用 OLED flush。
+
 ## T-1.1.5D-R0 Rollback Smoke Baseline
 - [ ] `D0-BOOT`: 固定文本页 `OLED TXT OK / RAW / MV / VDDA / STAT` 恢复显示。
 - [ ] `D0-CHAR`: `V/W/X/Y/Z` 显示完整无缺字。
