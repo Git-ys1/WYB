@@ -1,0 +1,25 @@
+# Build output
+Debug/
+Release/
+
+# Binaries and maps
+*.elf
+*.hex
+*.list
+*.map
+
+# Intermediate objects/deps/logs
+*.o
+*.d
+*.dep
+*.log
+*.su
+*.cyclo
+
+# IDE/workspace generated
+.settings/
+*.launch
+
+# OS junk
+.DS_Store
+Thumbs.db

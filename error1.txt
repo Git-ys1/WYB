@@ -1,0 +1,658 @@
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:69: error: unknown type name 'uint32_t'
+  270 | void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority);
+      |                                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h:771:36: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: error: unknown type name 'uint32_t'
+   64 |   uint32_t OptionType;     /*!< Option byte to be configured.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: error: unknown type name 'uint32_t'
+  859 | HAL_StatusTypeDef  FLASH_WaitForLastOperation(uint32_t Timeout);
+      |                                               ^~~~~~~~
+compilation terminated.
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:69: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: error: unknown type name 'uint32_t'
+  859 | HAL_StatusTypeDef  FLASH_WaitForLastOperation(uint32_t Timeout);
+      |                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: error: unknown type name 'uint32_t'
+   66 |   uint32_t WRPArea;        /*!< Write protection area to be programmed (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h:775:43: error: unknown type name 'uint32_t'
+  775 |                                           uint32_t Timeout);
+      |                                           ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:271:25: error: unknown type name 'IRQn_Type'
+  271 | void HAL_NVIC_EnableIRQ(IRQn_Type IRQn);
+      |                         ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: error: unknown type name 'uint32_t'
+   69 |   uint32_t WRPStartOffset; /*!< Write protection start offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h:775:43: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: error: unknown type name 'uint32_t'
+   71 |   uint32_t WRPEndOffset;   /*!< Write protection end offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h:789:1: error: unknown type name 'uint32_t'
+  789 | uint32_t             HAL_DMA_GetError(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~
+compilation terminated.
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:272:26: error: unknown type name 'IRQn_Type'
+  272 | void HAL_NVIC_DisableIRQ(IRQn_Type IRQn);
+      |                          ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h:789:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+compilation terminated.
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: error: unknown type name 'uint32_t'
+   73 |   uint32_t RDPLevel;       /*!< Set the read protection level.. (used for OPTIONBYTE_RDP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:1: error: unknown type name 'uint32_t'
+  274 | uint32_t HAL_SYSTICK_Config(uint32_t TicksNumb);
+      | ^~~~~~~~
+In file included from ../Core/Inc/stm32g4xx_hal_conf.h:224:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:269:35: error: unknown type name 'uint32_t'
+  269 | void HAL_NVIC_SetPriorityGrouping(uint32_t PriorityGroup);
+      |                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:29: error: unknown type name 'uint32_t'
+  274 | uint32_t HAL_SYSTICK_Config(uint32_t TicksNumb);
+      |                             ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: error: unknown type name 'uint32_t'
+   75 |   uint32_t USERType;       /*!< User option byte(s) to be configured (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:29: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: error: unknown type name 'uint32_t'
+   77 |   uint32_t USERConfig;     /*!< Value of the user option byte (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:285:1: error: unknown type name 'uint32_t'
+  285 | uint32_t HAL_NVIC_GetPriorityGrouping(void);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:27: error: unknown type name 'IRQn_Type'
+  270 | void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority);
+      |                           ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:43: error: unknown type name 'uint32_t'
+  270 | void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority);
+      |                                           ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:43: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:69: error: unknown type name 'uint32_t'
+  270 | void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority);
+      |                                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:285:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: error: unknown type name 'uint32_t'
+   86 |   uint32_t PCROPConfig;    /*!< Configuration of the PCROP (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:270:69: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: error: unknown type name 'uint32_t'
+   89 |   uint32_t PCROPStartAddr; /*!< PCROP Start address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:27: error: unknown type name 'IRQn_Type'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                           ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:43: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                           ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: error: unknown type name 'uint32_t'
+   92 |   uint32_t PCROPEndAddr;   /*!< PCROP End address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:271:25: error: unknown type name 'IRQn_Type'
+  271 | void HAL_NVIC_EnableIRQ(IRQn_Type IRQn);
+      |                         ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:43: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:67: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:67: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: error: unknown type name 'uint32_t'
+   94 |   uint32_t BootEntryPoint; /*!< Set the Boot Lock (used for OPTIONBYTE_BOOT_LOCK).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:272:26: error: unknown type name 'IRQn_Type'
+  272 | void HAL_NVIC_DisableIRQ(IRQn_Type IRQn);
+      |                          ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:95: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                                                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:1: error: unknown type name 'uint32_t'
+  274 | uint32_t HAL_SYSTICK_Config(uint32_t TicksNumb);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:95: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: error: unknown type name 'uint32_t'
+   96 |   uint32_t SecBank;        /*!< Bank of securable memory area to be programmed (used for OPTIONBYTE_SEC).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:1: error: unknown type name 'uint32_t'
+  287 | uint32_t HAL_NVIC_GetPendingIRQ(IRQn_Type IRQn);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:29: error: unknown type name 'uint32_t'
+  274 | uint32_t HAL_SYSTICK_Config(uint32_t TicksNumb);
+      |                             ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: error: unknown type name 'uint32_t'
+  102 |   uint32_t SecSize;        /*!< Size of securable memory area to be programmed (used for OPTIONBYTE_SEC),
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:274:29: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:285:1: error: unknown type name 'uint32_t'
+  285 | uint32_t HAL_NVIC_GetPriorityGrouping(void);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:285:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:33: error: unknown type name 'IRQn_Type'
+  287 | uint32_t HAL_NVIC_GetPendingIRQ(IRQn_Type IRQn);
+      |                                 ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:3: error: unknown type name '__IO'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |   ^~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:31: error: expected ':', ',', ';', '}' or '__attribute__' before 'ErrorCode'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |                               ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:288:29: error: unknown type name 'IRQn_Type'
+  288 | void HAL_NVIC_SetPendingIRQ(IRQn_Type IRQn);
+      |                             ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:27: error: unknown type name 'IRQn_Type'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                           ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:43: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                           ^~~~~~~~
+In file included from ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:797:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:52:73: error: unknown type name 'uint32_t'
+   52 | HAL_StatusTypeDef HAL_FLASHEx_Erase(FLASH_EraseInitTypeDef *pEraseInit, uint32_t *PageError);
+      |                                                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:43: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:67: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: error: unknown type name 'uint32_t'
+   56 | HAL_StatusTypeDef HAL_FLASHEx_EnableSecMemProtection(uint32_t Bank);
+      |                                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:67: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:95: error: unknown type name 'uint32_t'
+  286 | void HAL_NVIC_GetPriority(IRQn_Type IRQn, uint32_t PriorityGroup, uint32_t* pPreemptPriority, uint32_t* pSubPriority);
+      |                                                                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:289:31: error: unknown type name 'IRQn_Type'
+  289 | void HAL_NVIC_ClearPendingIRQ(IRQn_Type IRQn);
+      |                               ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:286:95: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:1: error: unknown type name 'uint32_t'
+  287 | uint32_t HAL_NVIC_GetPendingIRQ(IRQn_Type IRQn);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:1: error: unknown type name 'uint32_t'
+  290 | uint32_t HAL_NVIC_GetActive(IRQn_Type IRQn);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                                  ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:287:33: error: unknown type name 'IRQn_Type'
+  287 | uint32_t HAL_NVIC_GetPendingIRQ(IRQn_Type IRQn);
+      |                                 ^~~~~~~~~
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:29: error: unknown type name 'IRQn_Type'
+  290 | uint32_t HAL_NVIC_GetActive(IRQn_Type IRQn);
+      |                             ^~~~~~~~~
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:291:34: error: unknown type name 'uint32_t'
+  291 | void HAL_SYSTICK_CLKSourceConfig(uint32_t CLKSource);
+      |                                  ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:291:34: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:288:29: error: unknown type name 'IRQn_Type'
+  288 | void HAL_NVIC_SetPendingIRQ(IRQn_Type IRQn);
+      |                             ^~~~~~~~~
+In file included from ../Core/Inc/stm32g4xx_hal_conf.h:252:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:55:3: error: unknown type name 'uint32_t'
+   55 |   uint32_t Line;                    /*!<  Exti line number */
+      |   ^~~~~~~~
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                            ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:289:31: error: unknown type name 'IRQn_Type'
+  289 | void HAL_NVIC_ClearPendingIRQ(IRQn_Type IRQn);
+      |                               ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:1: error: unknown type name 'uint32_t'
+  290 | uint32_t HAL_NVIC_GetActive(IRQn_Type IRQn);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:64:3: error: unknown type name 'uint32_t'
+   64 |   uint32_t Line;      /*!< The Exti line to be configured. This parameter
+      |   ^~~~~~~~
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.o] Error 1
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:64:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: error: unknown type name 'uint64_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                              ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:66:3: error: unknown type name 'uint32_t'
+   66 |   uint32_t Mode;      /*!< The Exit Mode to be configured for a core.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:66:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:290:29: error: unknown type name 'IRQn_Type'
+  290 | uint32_t HAL_NVIC_GetActive(IRQn_Type IRQn);
+      |                             ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:68:3: error: unknown type name 'uint32_t'
+   68 |   uint32_t Trigger;   /*!< The Exti Trigger to be configured. This parameter
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:68:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:291:34: error: unknown type name 'uint32_t'
+  291 | void HAL_SYSTICK_CLKSourceConfig(uint32_t CLKSource);
+      |                                  ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:70:3: error: unknown type name 'uint32_t'
+   70 |   uint32_t GPIOSel;   /*!< The Exti GPIO multiplexer selection to be configured.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h:291:34: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:70:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                               ^~~~~~~~
+In file included from ../Core/Inc/stm32g4xx_hal_conf.h:252:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:55:3: error: unknown type name 'uint32_t'
+   55 |   uint32_t Line;                    /*!<  Exti line number */
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:279:65: error: unknown type name 'uint32_t'
+  279 | HAL_StatusTypeDef HAL_EXTI_GetHandle(EXTI_HandleTypeDef *hexti, uint32_t ExtiLine);
+      |                                                                 ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:279:65: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: error: unknown type name 'uint64_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                                 ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:64:3: error: unknown type name 'uint32_t'
+   64 |   uint32_t Line;      /*!< The Exti line to be configured. This parameter
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:1: error: unknown type name 'uint32_t'
+  290 | uint32_t          HAL_EXTI_GetPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:64:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: error: unknown type name 'uint32_t'
+  823 | void               HAL_FLASH_EndOfOperationCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:66:3: error: unknown type name 'uint32_t'
+   66 |   uint32_t Mode;      /*!< The Exit Mode to be configured for a core.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:72: error: unknown type name 'uint32_t'
+  290 | uint32_t          HAL_EXTI_GetPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      |                                                                        ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:66:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:72: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: error: unknown type name 'uint32_t'
+  824 | void               HAL_FLASH_OperationErrorCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:68:3: error: unknown type name 'uint32_t'
+   68 |   uint32_t Trigger;   /*!< The Exti Trigger to be configured. This parameter
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:291:74: error: unknown type name 'uint32_t'
+  291 | void              HAL_EXTI_ClearPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      |                                                                          ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:68:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:291:74: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: error: unknown type name 'uint32_t'
+  847 | uint32_t HAL_FLASH_GetError(void);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:70:3: error: unknown type name 'uint32_t'
+   70 |   uint32_t GPIOSel;   /*!< The Exti GPIO multiplexer selection to be configured.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:70:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+In file included from ../Core/Inc/stm32g4xx_hal_conf.h:260:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:47:3: error: unknown type name 'uint32_t'
+   47 |   uint32_t TypeErase;   /*!< Mass erase or page erase.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:279:65: error: unknown type name 'uint32_t'
+  279 | HAL_StatusTypeDef HAL_EXTI_GetHandle(EXTI_HandleTypeDef *hexti, uint32_t ExtiLine);
+      |                                                                 ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:49:3: error: unknown type name 'uint32_t'
+   49 |   uint32_t Banks;       /*!< Select bank to erase.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:279:65: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: error: unknown type name 'uint32_t'
+  859 | HAL_StatusTypeDef  FLASH_WaitForLastOperation(uint32_t Timeout);
+      |                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:49:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:52:3: error: unknown type name 'uint32_t'
+   52 |   uint32_t Page;        /*!< Initial Flash page to erase when page erase is disabled.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:1: error: unknown type name 'uint32_t'
+  290 | uint32_t          HAL_EXTI_GetPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:52:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:55:3: error: unknown type name 'uint32_t'
+   55 |   uint32_t NbPages;     /*!< Number of pages to be erased.
+      |   ^~~~~~~~
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:72: error: unknown type name 'uint32_t'
+  290 | uint32_t          HAL_EXTI_GetPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      |                                                                        ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:55:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:290:72: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+compilation terminated.
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: error: unknown type name 'uint32_t'
+   64 |   uint32_t OptionType;     /*!< Option byte to be configured.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:291:74: error: unknown type name 'uint32_t'
+  291 | void              HAL_EXTI_ClearPending(EXTI_HandleTypeDef const *hexti, uint32_t Edge);
+      |                                                                          ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:291:74: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: error: unknown type name 'uint32_t'
+   66 |   uint32_t WRPArea;        /*!< Write protection area to be programmed (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+In file included from ../Core/Inc/stm32g4xx_hal_conf.h:260:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:47:3: error: unknown type name 'uint32_t'
+   47 |   uint32_t TypeErase;   /*!< Mass erase or page erase.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: error: unknown type name 'uint32_t'
+   69 |   uint32_t WRPStartOffset; /*!< Write protection start offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:49:3: error: unknown type name 'uint32_t'
+   49 |   uint32_t Banks;       /*!< Select bank to erase.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: error: unknown type name 'uint32_t'
+   71 |   uint32_t WRPEndOffset;   /*!< Write protection end offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:49:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:52:3: error: unknown type name 'uint32_t'
+   52 |   uint32_t Page;        /*!< Initial Flash page to erase when page erase is disabled.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:52:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: error: unknown type name 'uint32_t'
+   73 |   uint32_t RDPLevel;       /*!< Set the read protection level.. (used for OPTIONBYTE_RDP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:55:3: error: unknown type name 'uint32_t'
+   55 |   uint32_t NbPages;     /*!< Number of pages to be erased.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:55:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: error: unknown type name 'uint32_t'
+   75 |   uint32_t USERType;       /*!< User option byte(s) to be configured (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: error: unknown type name 'uint32_t'
+   77 |   uint32_t USERConfig;     /*!< Value of the user option byte (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: error: unknown type name 'uint32_t'
+   64 |   uint32_t OptionType;     /*!< Option byte to be configured.
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:64:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: error: unknown type name 'uint32_t'
+   66 |   uint32_t WRPArea;        /*!< Write protection area to be programmed (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:66:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: error: unknown type name 'uint32_t'
+   86 |   uint32_t PCROPConfig;    /*!< Configuration of the PCROP (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: error: unknown type name 'uint32_t'
+   69 |   uint32_t WRPStartOffset; /*!< Write protection start offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:69:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: error: unknown type name 'uint32_t'
+   89 |   uint32_t PCROPStartAddr; /*!< PCROP Start address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: error: unknown type name 'uint32_t'
+   71 |   uint32_t WRPEndOffset;   /*!< Write protection end offset (used for OPTIONBYTE_WRP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: error: unknown type name 'uint32_t'
+   92 |   uint32_t PCROPEndAddr;   /*!< PCROP End address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:71:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: error: unknown type name 'uint32_t'
+   73 |   uint32_t RDPLevel;       /*!< Set the read protection level.. (used for OPTIONBYTE_RDP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:73:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: error: unknown type name 'uint32_t'
+   75 |   uint32_t USERType;       /*!< User option byte(s) to be configured (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: error: unknown type name 'uint32_t'
+   94 |   uint32_t BootEntryPoint; /*!< Set the Boot Lock (used for OPTIONBYTE_BOOT_LOCK).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:75:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: error: unknown type name 'uint32_t'
+   77 |   uint32_t USERConfig;     /*!< Value of the user option byte (used for OPTIONBYTE_USER).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: error: unknown type name 'uint32_t'
+   96 |   uint32_t SecBank;        /*!< Bank of securable memory area to be programmed (used for OPTIONBYTE_SEC).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:77:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: error: unknown type name 'uint32_t'
+   86 |   uint32_t PCROPConfig;    /*!< Configuration of the PCROP (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:86:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: error: unknown type name 'uint32_t'
+  102 |   uint32_t SecSize;        /*!< Size of securable memory area to be programmed (used for OPTIONBYTE_SEC),
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: error: unknown type name 'uint32_t'
+   89 |   uint32_t PCROPStartAddr; /*!< PCROP Start address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:89:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: error: unknown type name 'uint32_t'
+   92 |   uint32_t PCROPEndAddr;   /*!< PCROP End address (used for OPTIONBYTE_PCROP).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:92:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:3: error: unknown type name '__IO'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |   ^~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: error: unknown type name 'uint32_t'
+   94 |   uint32_t BootEntryPoint; /*!< Set the Boot Lock (used for OPTIONBYTE_BOOT_LOCK).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:31: error: expected ':', ',', ';', '}' or '__attribute__' before 'ErrorCode'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |                               ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:94:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: error: unknown type name 'uint32_t'
+   96 |   uint32_t SecBank;        /*!< Bank of securable memory area to be programmed (used for OPTIONBYTE_SEC).
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:96:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: error: unknown type name 'uint32_t'
+  102 |   uint32_t SecSize;        /*!< Size of securable memory area to be programmed (used for OPTIONBYTE_SEC),
+      |   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:102:3: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+In file included from ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:797:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:52:73: error: unknown type name 'uint32_t'
+   52 | HAL_StatusTypeDef HAL_FLASHEx_Erase(FLASH_EraseInitTypeDef *pEraseInit, uint32_t *PageError);
+      |                                                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: error: unknown type name 'uint32_t'
+   56 | HAL_StatusTypeDef HAL_FLASHEx_EnableSecMemProtection(uint32_t Bank);
+      |                                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:3: error: unknown type name '__IO'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |   ^~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:137:31: error: expected ':', ',', ';', '}' or '__attribute__' before 'ErrorCode'
+  137 |   __IO uint32_t               ErrorCode;         /* FLASH error code */
+      |                               ^~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                                  ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+In file included from ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:797:
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:52:73: error: unknown type name 'uint32_t'
+   52 | HAL_StatusTypeDef HAL_FLASHEx_Erase(FLASH_EraseInitTypeDef *pEraseInit, uint32_t *PageError);
+      |                                                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:1:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+  +++ |+#include <stdint.h>
+    1 | /**
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: error: unknown type name 'uint32_t'
+   56 | HAL_StatusTypeDef HAL_FLASHEx_EnableSecMemProtection(uint32_t Bank);
+      |                                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:56:54: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                   ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:35: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                            ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: error: unknown type name 'uint32_t'
+   70 | void              FLASH_PageErase(uint32_t Page, uint32_t Banks);
+      |                                                  ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h:70:50: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: error: unknown type name 'uint64_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                              ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                      ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:38: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: error: unknown type name 'uint32_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                            ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:60: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: error: unknown type name 'uint64_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                                 ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: error: unknown type name 'uint32_t'
+  823 | void               HAL_FLASH_EndOfOperationCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: error: unknown type name 'uint64_t'
+  818 | HAL_StatusTypeDef  HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                              ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:818:78: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                         ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:41: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: error: unknown type name 'uint32_t'
+  824 | void               HAL_FLASH_OperationErrorCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: error: unknown type name 'uint32_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:63: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: error: unknown type name 'uint32_t'
+  847 | uint32_t HAL_FLASH_GetError(void);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: error: unknown type name 'uint64_t'
+  819 | HAL_StatusTypeDef  HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      |                                                                                 ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: error: unknown type name 'uint32_t'
+  859 | HAL_StatusTypeDef  FLASH_WaitForLastOperation(uint32_t Timeout);
+      |                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:819:81: note: 'uint64_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: error: unknown type name 'uint32_t'
+  823 | void               HAL_FLASH_EndOfOperationCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:823:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: error: unknown type name 'uint32_t'
+  824 | void               HAL_FLASH_OperationErrorCallback(uint32_t ReturnValue);
+      |                                                     ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:824:53: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+compilation terminated.
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: error: unknown type name 'uint32_t'
+  847 | uint32_t HAL_FLASH_GetError(void);
+      | ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:847:1: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: error: unknown type name 'uint32_t'
+  859 | HAL_StatusTypeDef  FLASH_WaitForLastOperation(uint32_t Timeout);
+      |                                               ^~~~~~~~
+../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:859:47: note: 'uint32_t' is defined in header '<stdint.h>'; this is probably fixable by adding '#include <stdint.h>'
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.o] Error 1
+../Core/Inc/stm32g4xx_hal_conf.h:280:10: fatal error: stm32g4xx_hal_i2c.h: No such file or directory
+  280 | #include "stm32g4xx_hal_i2c.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.o] Error 1
+make: *** [Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk:61: Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.o] Error 1
+"make -j16 all" terminated with exit code 2. Build might be incomplete.
+
+19:20:34 Build Failed. 2476 errors, 0 warnings. (took 1s.650ms)
+
