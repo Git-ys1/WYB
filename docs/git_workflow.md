@@ -9,7 +9,7 @@
 - Visibility: `private` (preferred)
 
 ## Baseline Anchor
-- Baseline commit (stable OLED+ADC smoke): `<to be filled after first commit>`
+- Baseline commit (stable OLED+ADC smoke): `70ad606`
 
 ## Mandatory Routine For Every Round
 
