@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include "../../App/app.h"
+#include "../../App/app_bootdiag.h"
 #include "../../BSP/bsp.h"
 /* USER CODE END Includes */
 
@@ -106,24 +107,30 @@ static APP_MAYBE_UNUSED void SmokeLed_Run(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  bootdiag_set_stage(BOOT_RESET);
+  bootdiag_set_fault(BOOT_FAULT_NONE);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  bootdiag_set_stage(BOOT_HAL);
   HAL_Init();
 
   /* USER CODE BEGIN Init */
   /* USER CODE END Init */
 
   /* Configure the system clock */
+  bootdiag_set_stage(BOOT_CLOCK);
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  bootdiag_set_stage(BOOT_MX);
   MX_GPIO_Init();
+  bootdiag_led_init();
 #if APP_EMERGENCY_LED_SMOKE_TEST
   (void)MX_I2C2_Init;
   (void)MX_I2C3_Init;
@@ -138,7 +145,9 @@ int main(void)
   MX_TIM16_Init();
 
   /* USER CODE BEGIN 2 */
+  bootdiag_set_stage(BOOT_BSP);
   bsp_init();
+  bootdiag_set_stage(BOOT_APP_INIT);
   app_init();
   /* USER CODE END 2 */
 #endif
@@ -151,10 +160,13 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 #if !APP_EMERGENCY_LED_SMOKE_TEST
+    bootdiag_heartbeat_tick();
     app_poll_button();
     app_measure_tick();
     app_ui_tick();
     app_beep_tick();
+#else
+    bootdiag_heartbeat_tick();
 #endif
     /* USER CODE END 3 */
   }
@@ -422,11 +434,14 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  volatile uint32_t spin = 0u;
+  uint8_t code = bootdiag_fault_from_stage(bootdiag_get_stage());
+
+  bootdiag_set_fault(code);
+  bootdiag_set_stage(BOOT_FAULT);
+
   while (1)
   {
-    spin++;
-    __NOP();
+    bootdiag_heartbeat_tick();
   }
   /* USER CODE END Error_Handler_Debug */
 }

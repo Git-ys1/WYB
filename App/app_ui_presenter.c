@@ -4,7 +4,7 @@
 
 app_err_t app_ui_presenter_init(void)
 {
-    return app_display_init();
+    return app_display_init_once();
 }
 
 bool app_ui_presenter_ready(void)
@@ -19,5 +19,5 @@ app_err_t app_ui_presenter_last_err(void)
 
 app_err_t app_ui_presenter_flush(const app_ui_frame_t *frame)
 {
-    return app_display_show_menu_frame(frame);
+    return app_display_render(frame);
 }

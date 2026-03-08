@@ -26,12 +26,28 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 主流程默认不再依赖 smoke 编译分流，统一走 `bsp_init + app_init + superloop`。
 - 本阶段不恢复 Soft-I2C / recover 状态机 / dirty flush / 多页面并发刷新。
 
-## 启动阶段码（bootdiag）
-- `10`：GPIO/基础启动完成
-- `40`：显示初始化完成（可见页已输出）
-- `102`：OLED init 失败
-- `103`：OLED flush 失败
-- `104`：保留（历史阶段码）
+## T-1.1.5G-R1 启动脊柱（当前口径）
+- 启动阶段统一由 `App/app_bootdiag.*` 上报：
+  - `BOOT_RESET`
+  - `BOOT_HAL`
+  - `BOOT_CLOCK`
+  - `BOOT_MX`
+  - `BOOT_BSP`
+  - `BOOT_APP_INIT`
+  - `BOOT_DISPLAY_INIT`
+  - `BOOT_RUN`
+  - `BOOT_FAULT`
+- 故障码固定：
+  - `1`: HAL/Clock/MX
+  - `2`: BSP
+  - `3`: Display init
+  - `4`: UI flush
+  - `5`: Unknown
+- `PB12` 现在是正式启动心跳/故障灯：
+  - Boot 快闪（100ms）
+  - Run 慢闪（500ms）
+  - Fault 按码闪烁（150ms on/off + 800ms 间隔）
+- 详细流程见 [docs/boot_flow_r1.md](/F:/CodeForge/STM32CubeIDE_2.1.0/WorkSpace3/WYB/docs/boot_flow_r1.md)
 
 ## 当前实现范围
 - OLED 调试 UI（I2C2：`PC4/PA8`），支持状态/日志可视化。
@@ -59,6 +75,11 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `app.c` 只组织菜单/调试文本，不直接操作 OLED 底层
 - 当前菜单恢复范围：`L1_MODULE / L2_DEBUG_PAGE / L2_MEAS_FUNC / L3_RES_RANGE / L4_RES_READY`
 - 本轮仍保持测量懒启动：非 `RES_RUN` 页面不启动真实测量。
+
+## T-1.1.5G-R1 范围声明
+- 本轮暂停菜单功能推进，优先保证“启动可判定”。
+- 上电先显示最小诊断页（`BOOT OK / STAGE / FAULT / RAW / MV`）。
+- 菜单仅保留最小首页壳，且仅在诊断页稳定 10 秒后才允许显示。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -94,19 +115,9 @@ while (1) {
 }
 ```
 
-## 心跳灯逻辑（TIM6 中断，非阻塞）
-- 定时器：`TIM6`，`50ms` tick。
-- 上电自检序列：`蓝 -> 红 -> 绿`（非阻塞）。
-- 状态：
-  - `BOOT/FAULT`：红灯常亮，绿灯灭。
-  - `RUN`：绿灯闪烁（频率由负载提示决定），红灯灭。
-- 卡死检测：
-  - 主循环调用 `hb_kick()` 喂心跳。
-  - 若连续 `1s` 未检测到 `kick` 变化，自动进入 `FAULT`。
-- 负载提示（当前映射）：
-  - 低负载 `<=200`：`1000ms` 周期
-  - 中负载 `201~700`：`400ms` 周期
-  - 高负载 `>700`：`150ms` 周期
+## 心跳/故障可视化（当前）
+- 当前主诊断信号为 `PB12`（bootdiag 控制），用于区分 Boot/Run/Fault。
+- 历史 `TIM6 + RGB` 路径保留代码但不作为本轮诊断主路径。
 
 ## 目录说明
 - `App/`：菜单状态机、调试 UI、日志联动。
@@ -120,7 +131,7 @@ while (1) {
 - I2C 上拉必须接 `3.3V`。
 - ADC 输入点必须限制在 `0~3.3V`。
 - 高源阻抗档位需使用长采样时间（当前已按长采样配置）。
-- OLED 黑屏时优先看 `bootdiag_get_stage()/bootdiag_get_err()`（STLink Live Watch）。
+- OLED 黑屏时优先看 `bootdiag_get_stage()/bootdiag_get_fault()`（STLink Live Watch）。
 
 ## Git 工作纪律（强制执行）
 - GitHub 账号：`Git-ys1`

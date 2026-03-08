@@ -1,7 +1,4 @@
 #include "app.h"
-#include "app_heartbeat.h"
-#include "app_ui_presenter.h"
-#include "app_display_service.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -12,51 +9,31 @@
 #include "../BSP/bsp_keys.h"
 #include "../Drivers/drv_adc_internal.h"
 #include "../Drivers/drv_beep.h"
+#include "app_bootdiag.h"
+#include "app_display_service.h"
+#include "app_ui_presenter.h"
 
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
+#define BOOT_DIAG_STABLE_MS 10000u
 #define BEEP_FREQ_HZ 2700u
 
 typedef enum {
-    UI_MOD_DEBUG = 0,
-    UI_MOD_MEAS
-} ui_module_t;
+    UI_PAGE_DIAG = 0,
+    UI_PAGE_MENU
+} ui_page_t;
 
 typedef enum {
-    MENU_L1_MODULE = 1,
-    MENU_L2_DEBUG_PAGE,
-    MENU_L2_MEAS_FUNC,
-    MENU_L3_RES_RANGE,
-    MENU_L4_RES_READY,
-    MENU_L4_RES_RUN
-} menu_level_t;
-
-typedef enum {
-    MEAS_FUNC_RES = 0,
-    MEAS_FUNC_VDC,
-    MEAS_FUNC_FREQ,
-    MEAS_FUNC_CONT,
-    MEAS_FUNC_DIODE,
-    MEAS_FUNC_COUNT
-} meas_func_t;
-
-typedef enum {
-    RES_RANGE_AUTO = 0,
-    RES_RANGE_200,
-    RES_RANGE_2K,
-    RES_RANGE_20K,
-    RES_RANGE_200K,
-    RES_RANGE_COUNT
-} res_range_sel_t;
+    MENU_ITEM_DEBUG = 0,
+    MENU_ITEM_MEASURE
+} menu_item_t;
 
 typedef struct {
-    ui_module_t module_sel;
-    menu_level_t menu_level;
-    meas_func_t meas_func_sel;
-    res_range_sel_t res_range_sel;
+    ui_page_t page;
+    menu_item_t menu_sel;
+    bool menu_enabled;
     bool meas_run_enabled;
-
     app_err_t presenter_err;
     app_err_t adc_init_err;
     app_err_t adc_last_err;
@@ -66,7 +43,7 @@ typedef struct {
     uint16_t raw_u16;
     uint32_t mv;
     uint32_t vdda_mv;
-
+    uint32_t run_stage_ms;
     uint32_t next_ui_ms;
     uint32_t next_debug_adc_ms;
     uint32_t next_meas_ms;
@@ -74,20 +51,6 @@ typedef struct {
 } app_ctx_t;
 
 static app_ctx_t g_app;
-static volatile boot_stage_t g_bootdiag_stage = BOOT_STAGE_10_GPIO_OK;
-static volatile int g_bootdiag_err = 0;
-static volatile uint32_t g_bootdiag_ms = 0u;
-
-static const char *k_module_name[2] = {"DEBUG", "MEASURE"};
-static const char *k_meas_name[MEAS_FUNC_COUNT] = {"RES", "VDC", "FREQ", "CONT", "DIODE"};
-static const char *k_range_name[RES_RANGE_COUNT] = {"AUTO", "200", "2K", "20K", "200K"};
-
-static void bootdiag_set(boot_stage_t stage, int err)
-{
-    g_bootdiag_stage = stage;
-    g_bootdiag_err = err;
-    g_bootdiag_ms = bsp_millis();
-}
 
 static void frame_clear(app_ui_frame_t *frame)
 {
@@ -95,14 +58,6 @@ static void frame_clear(app_ui_frame_t *frame)
         return;
     }
     memset(frame, 0, sizeof(*frame));
-}
-
-static void frame_set_line(app_ui_frame_t *frame, uint8_t line, const char *text)
-{
-    if ((frame == NULL) || (line >= 8u) || (text == NULL)) {
-        return;
-    }
-    (void)snprintf(frame->line[line], sizeof(frame->line[line]), "%s", text);
 }
 
 static void frame_set_linef(app_ui_frame_t *frame, uint8_t line, const char *fmt, ...)
@@ -165,203 +120,79 @@ static void ui_update_debug_adc_sample(void)
     }
 }
 
-static void meas_func_step(int dir)
+static void build_diag_frame(app_ui_frame_t *frame)
 {
-    int next = (int)g_app.meas_func_sel + dir;
+    uint32_t now = bsp_millis();
+    uint32_t elapsed_ms = now - g_app.run_stage_ms;
+    uint32_t remain_s = 0u;
 
-    if (next < 0) {
-        next = (int)MEAS_FUNC_COUNT - 1;
-    } else if (next >= (int)MEAS_FUNC_COUNT) {
-        next = 0;
+    if (elapsed_ms < BOOT_DIAG_STABLE_MS) {
+        remain_s = (BOOT_DIAG_STABLE_MS - elapsed_ms) / 1000u;
     }
-    g_app.meas_func_sel = (meas_func_t)next;
-}
 
-static void res_range_step(int dir)
-{
-    int next = (int)g_app.res_range_sel + dir;
+    frame_clear(frame);
+    frame_set_linef(frame, 0u, "BOOT OK");
+    frame_set_linef(frame, 1u, "STAGE:%u", (unsigned)bootdiag_get_stage());
+    frame_set_linef(frame, 2u, "FAULT:%u", (unsigned)bootdiag_get_fault());
 
-    if (next < 0) {
-        next = (int)RES_RANGE_COUNT - 1;
-    } else if (next >= (int)RES_RANGE_COUNT) {
-        next = 0;
-    }
-    g_app.res_range_sel = (res_range_sel_t)next;
-}
-
-static void build_l1_module_frame(app_ui_frame_t *frame)
-{
-    frame_set_line(frame, 0u, "MAIN MENU");
-    frame_set_linef(frame, 1u, "%c DEBUG", (g_app.module_sel == UI_MOD_DEBUG) ? '>' : ' ');
-    frame_set_linef(frame, 2u, "%c MEASURE", (g_app.module_sel == UI_MOD_MEAS) ? '>' : ' ');
-    frame_set_line(frame, 4u, "UP/DN/LR: SEL");
-    frame_set_line(frame, 5u, "OK: ENTER");
-    frame_set_line(frame, 6u, "BACK: STAY");
-}
-
-static void build_l2_debug_frame(app_ui_frame_t *frame)
-{
-    frame_set_line(frame, 0u, "DEBUG/ADC");
     if (g_app.raw_valid) {
-        frame_set_linef(frame, 1u, "RAW:%5u", g_app.raw_u16);
+        frame_set_linef(frame, 3u, "RAW:%5u", g_app.raw_u16);
     } else {
-        frame_set_line(frame, 1u, "RAW: ----");
+        frame_set_linef(frame, 3u, "RAW: ----");
     }
 
     if (g_app.mv_valid) {
-        frame_set_linef(frame, 2u, "MV :%lu.%03lu",
+        frame_set_linef(frame, 4u, "MV :%lu.%03lu",
                         (unsigned long)(g_app.mv / 1000u),
                         (unsigned long)(g_app.mv % 1000u));
     } else {
-        frame_set_line(frame, 2u, "MV : ----");
+        frame_set_linef(frame, 4u, "MV : ----");
     }
 
     if (g_app.vdda_valid) {
-        frame_set_linef(frame, 3u, "VDDA:%4lu", (unsigned long)g_app.vdda_mv);
+        frame_set_linef(frame, 5u, "VDDA:%4lu", (unsigned long)g_app.vdda_mv);
     } else {
-        frame_set_line(frame, 3u, "VDDA:----");
+        frame_set_linef(frame, 5u, "VDDA:----");
     }
 
     if (g_app.adc_last_err == ERR_OK) {
-        frame_set_line(frame, 4u, "STAT:OK");
+        frame_set_linef(frame, 6u, "STAT:OK");
     } else {
-        frame_set_linef(frame, 4u, "STAT:ERR%d", (int)g_app.adc_last_err);
+        frame_set_linef(frame, 6u, "STAT:ERR%d", (int)g_app.adc_last_err);
     }
 
-    frame_set_linef(frame, 6u, "MOD:%s", k_module_name[g_app.module_sel]);
-    frame_set_line(frame, 7u, "BACK: MAIN");
-}
-
-static void build_l2_meas_frame(app_ui_frame_t *frame)
-{
-    uint8_t i;
-
-    frame_set_line(frame, 0u, "MEASURE FUNC");
-    for (i = 0u; i < MEAS_FUNC_COUNT; i++) {
-        frame_set_linef(frame, (uint8_t)(i + 1u), "%c %s",
-                        (g_app.meas_func_sel == (meas_func_t)i) ? '>' : ' ',
-                        k_meas_name[i]);
+    if (g_app.menu_enabled) {
+        frame_set_linef(frame, 7u, "OK/BACK:MENU");
+    } else {
+        frame_set_linef(frame, 7u, "MENU IN:%2lus", (unsigned long)remain_s);
     }
-    frame_set_line(frame, 7u, "BACK: MAIN");
 }
 
-static void build_l3_range_frame(app_ui_frame_t *frame)
-{
-    uint8_t i;
-
-    frame_set_line(frame, 0u, "RES RANGE");
-    for (i = 0u; i < RES_RANGE_COUNT; i++) {
-        frame_set_linef(frame, (uint8_t)(i + 1u), "%c %s",
-                        (g_app.res_range_sel == (res_range_sel_t)i) ? '>' : ' ',
-                        k_range_name[i]);
-    }
-    frame_set_line(frame, 7u, "OK:READY BACK");
-}
-
-static void build_l4_ready_frame(app_ui_frame_t *frame)
-{
-    frame_set_line(frame, 0u, "RES READY");
-    frame_set_linef(frame, 1u, "RANGE: %s", k_range_name[g_app.res_range_sel]);
-    frame_set_line(frame, 3u, "PRESS OK TO RUN");
-    frame_set_line(frame, 4u, "RUN DISABLED");
-    frame_set_line(frame, 6u, "UP/DN/LR: CHG");
-    frame_set_line(frame, 7u, "BACK: RANGE");
-}
-
-static void build_current_frame(app_ui_frame_t *frame)
+static void build_menu_frame(app_ui_frame_t *frame)
 {
     frame_clear(frame);
-
-    if (g_app.menu_level == MENU_L1_MODULE) {
-        build_l1_module_frame(frame);
-    } else if (g_app.menu_level == MENU_L2_DEBUG_PAGE) {
-        build_l2_debug_frame(frame);
-    } else if (g_app.menu_level == MENU_L2_MEAS_FUNC) {
-        build_l2_meas_frame(frame);
-    } else if (g_app.menu_level == MENU_L3_RES_RANGE) {
-        build_l3_range_frame(frame);
-    } else {
-        build_l4_ready_frame(frame);
-    }
+    frame_set_linef(frame, 0u, "MAIN MENU");
+    frame_set_linef(frame, 1u, "%c DEBUG", (g_app.menu_sel == MENU_ITEM_DEBUG) ? '>' : ' ');
+    frame_set_linef(frame, 2u, "%c MEASURE", (g_app.menu_sel == MENU_ITEM_MEASURE) ? '>' : ' ');
+    frame_set_linef(frame, 4u, "RUN DISABLED");
+    frame_set_linef(frame, 6u, "UP/DN/LR:SEL");
+    frame_set_linef(frame, 7u, "OK/BACK:DIAG");
 }
 
 static void handle_key_short(key_id_t key)
 {
-    if (g_app.menu_level == MENU_L1_MODULE) {
-        if ((key == KEY_UP) || (key == KEY_DOWN)) {
-            g_app.module_sel = (g_app.module_sel == UI_MOD_DEBUG) ? UI_MOD_MEAS : UI_MOD_DEBUG;
-        } else if (key == KEY_LEFT) {
-            g_app.module_sel = UI_MOD_DEBUG;
-        } else if (key == KEY_RIGHT) {
-            g_app.module_sel = UI_MOD_MEAS;
-        } else if (key == KEY_OK) {
-            g_app.menu_level = (g_app.module_sel == UI_MOD_DEBUG) ? MENU_L2_DEBUG_PAGE : MENU_L2_MEAS_FUNC;
+    if (g_app.page == UI_PAGE_DIAG) {
+        if (g_app.menu_enabled && ((key == KEY_OK) || (key == KEY_BACK))) {
+            g_app.page = UI_PAGE_MENU;
         }
         return;
     }
 
-    if (g_app.menu_level == MENU_L2_DEBUG_PAGE) {
-        if (key == KEY_BACK) {
-            g_app.menu_level = MENU_L1_MODULE;
-        }
-        return;
+    if ((key == KEY_UP) || (key == KEY_DOWN) || (key == KEY_LEFT) || (key == KEY_RIGHT)) {
+        g_app.menu_sel = (g_app.menu_sel == MENU_ITEM_DEBUG) ? MENU_ITEM_MEASURE : MENU_ITEM_DEBUG;
+    } else if ((key == KEY_OK) || (key == KEY_BACK)) {
+        g_app.page = UI_PAGE_DIAG;
     }
-
-    if (g_app.menu_level == MENU_L2_MEAS_FUNC) {
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
-            meas_func_step(-1);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
-            meas_func_step(1);
-        } else if (key == KEY_OK) {
-            if (g_app.meas_func_sel == MEAS_FUNC_RES) {
-                g_app.menu_level = MENU_L3_RES_RANGE;
-            }
-        } else if (key == KEY_BACK) {
-            g_app.menu_level = MENU_L1_MODULE;
-        }
-        return;
-    }
-
-    if (g_app.menu_level == MENU_L3_RES_RANGE) {
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
-            res_range_step(-1);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
-            res_range_step(1);
-        } else if (key == KEY_OK) {
-            g_app.menu_level = MENU_L4_RES_READY;
-            g_app.meas_run_enabled = false;
-        } else if (key == KEY_BACK) {
-            g_app.menu_level = MENU_L2_MEAS_FUNC;
-            g_app.meas_run_enabled = false;
-        }
-        return;
-    }
-
-    if (g_app.menu_level == MENU_L4_RES_READY) {
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
-            res_range_step(-1);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
-            res_range_step(1);
-        } else if (key == KEY_BACK) {
-            g_app.menu_level = MENU_L3_RES_RANGE;
-            g_app.meas_run_enabled = false;
-        } else if (key == KEY_OK) {
-            g_app.meas_run_enabled = false;
-        }
-    }
-}
-
-static void handle_key_long(key_id_t key)
-{
-    if (key != KEY_OK) {
-        return;
-    }
-    if (g_app.menu_level == MENU_L1_MODULE) {
-        return;
-    }
-
-    g_app.menu_level = MENU_L1_MODULE;
-    g_app.meas_run_enabled = false;
 }
 
 void app_init(void)
@@ -370,34 +201,32 @@ void app_init(void)
     uint32_t now = bsp_millis();
 
     memset(&g_app, 0, sizeof(g_app));
-    bootdiag_set(BOOT_STAGE_10_GPIO_OK, ERR_OK);
 
-    hb_init();
     bsp_keys_init();
     beep_init(BEEP_FREQ_HZ);
 
-    g_app.module_sel = UI_MOD_DEBUG;
-    g_app.menu_level = MENU_L1_MODULE;
-    g_app.meas_func_sel = MEAS_FUNC_RES;
-    g_app.res_range_sel = RES_RANGE_2K;
+    g_app.page = UI_PAGE_DIAG;
+    g_app.menu_sel = MENU_ITEM_DEBUG;
+    g_app.menu_enabled = false;
     g_app.meas_run_enabled = false;
-
-    err = app_ui_presenter_init();
-    g_app.presenter_err = err;
-    if (err == ERR_OK) {
-        bootdiag_set(BOOT_STAGE_40_OLED_FLUSH_OK, ERR_OK);
-        hb_force_fault(0u);
-        (void)app_display_show_boot();
-    } else {
-        bootdiag_set(BOOT_STAGE_EX2_OLED_INIT_FAIL, err);
-        hb_force_fault(1u);
-        (void)app_display_show_fallback("EX2");
-    }
+    g_app.vdda_mv = 3300u;
 
     g_app.adc_init_err = adc1_init();
     g_app.adc_last_err = g_app.adc_init_err;
     ui_update_debug_adc_sample();
 
+    bootdiag_set_stage(BOOT_DISPLAY_INIT);
+    err = app_ui_presenter_init();
+    g_app.presenter_err = err;
+    if (err != ERR_OK) {
+        bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
+        bootdiag_set_stage(BOOT_FAULT);
+    } else {
+        bootdiag_set_fault(BOOT_FAULT_NONE);
+        bootdiag_set_stage(BOOT_RUN);
+    }
+
+    g_app.run_stage_ms = bootdiag_get_ms();
     g_app.next_ui_ms = now;
     g_app.next_debug_adc_ms = now;
     g_app.next_meas_ms = now;
@@ -410,17 +239,12 @@ void app_poll_button(void)
     uint32_t now = bsp_millis();
     bool changed = false;
 
-    hb_kick();
     keys_poll();
 
     while (keys_get_event(&evt)) {
         if (evt.type == KEY_EVT_DOWN) {
             handle_key_short(evt.key);
             beep_once(20u);
-            changed = true;
-        } else if (evt.type == KEY_EVT_LONG) {
-            handle_key_long(evt.key);
-            beep_once(60u);
             changed = true;
         }
     }
@@ -440,7 +264,7 @@ void app_measure_tick(void)
     }
     g_app.next_meas_ms = now + MEAS_PERIOD_MS;
 
-    if ((g_app.menu_level != MENU_L4_RES_RUN) || (!g_app.meas_run_enabled)) {
+    if (!g_app.meas_run_enabled) {
         return;
     }
 }
@@ -451,12 +275,19 @@ void app_ui_tick(void)
     app_ui_frame_t frame;
     app_err_t err;
 
-    if (g_app.menu_level == MENU_L2_DEBUG_PAGE) {
-        if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
-            ui_update_debug_adc_sample();
-            g_app.ui_dirty = true;
-            g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;
-        }
+    app_display_poll();
+
+    if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
+        ui_update_debug_adc_sample();
+        g_app.ui_dirty = true;
+        g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;
+    }
+
+    if ((!g_app.menu_enabled) && app_display_ready() &&
+        (bootdiag_get_stage() == BOOT_RUN) &&
+        ((now - g_app.run_stage_ms) >= BOOT_DIAG_STABLE_MS)) {
+        g_app.menu_enabled = true;
+        g_app.ui_dirty = true;
     }
 
     if ((int32_t)(now - g_app.next_ui_ms) < 0) {
@@ -468,41 +299,34 @@ void app_ui_tick(void)
         return;
     }
 
-    build_current_frame(&frame);
+    if (g_app.page == UI_PAGE_MENU) {
+        build_menu_frame(&frame);
+    } else {
+        build_diag_frame(&frame);
+    }
+
+    if (!app_ui_presenter_ready()) {
+        g_app.presenter_err = app_ui_presenter_last_err();
+        bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
+        bootdiag_set_stage(BOOT_FAULT);
+        g_app.ui_dirty = true;
+        return;
+    }
+
     err = app_ui_presenter_flush(&frame);
     if (err != ERR_OK) {
         g_app.presenter_err = err;
-        bootdiag_set(BOOT_STAGE_EX3_OLED_FLUSH_FAIL, err);
-        hb_force_fault(1u);
-        (void)app_display_show_fallback("EX3");
+        bootdiag_set_fault(BOOT_FAULT_UI_FLUSH);
+        bootdiag_set_stage(BOOT_FAULT);
+        (void)app_display_render_fault(bootdiag_get_fault(), (uint8_t)bootdiag_get_stage());
+        g_app.ui_dirty = true;
         return;
     }
 
     g_app.ui_dirty = false;
-    hb_force_fault(0u);
-    if (g_app.menu_level == MENU_L2_DEBUG_PAGE) {
-        hb_set_load_hint(200u);
-    } else {
-        hb_set_load_hint(400u);
-    }
 }
 
 void app_beep_tick(void)
 {
     beep_tick();
-}
-
-boot_stage_t bootdiag_get_stage(void)
-{
-    return g_bootdiag_stage;
-}
-
-int bootdiag_get_err(void)
-{
-    return g_bootdiag_err;
-}
-
-uint32_t bootdiag_get_ms(void)
-{
-    return g_bootdiag_ms;
 }

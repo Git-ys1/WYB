@@ -1,5 +1,14 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.5G-R1 Boot Spine Diagnostics
+- [ ] `G1-BOOT-LED`: PB12 在 Boot 快闪、Run 慢闪、Fault 按码闪烁。
+- [ ] `G1-FAULT-CODE`: 断 OLED / 强制显示初始化失败时，fault code 可区分（3 或 4）。
+- [ ] `G1-ERR-HANDLER`: `Error_Handler()` 进入前已写入 `BOOT_FAULT + fault code`。
+- [ ] `G1-DIAG-PAGE`: 显示 ready 后最小诊断页可见（`BOOT OK/STAGE/FAULT/RAW/MV`）。
+- [ ] `G1-DIAG-STABLE-5MIN`: 最小诊断页连续 5 分钟无黑屏/花屏。
+- [ ] `G1-MENU-GATE`: 诊断页未稳定 10 秒前不进入菜单壳。
+- [ ] `G1-SINGLE-WRITER`: 正式路径唯一 flush 调用点仍在 `app_display_service.c`。
+
 ## T-1.1.5F-R1 Unified Display + Menu Shell
 - [ ] `F1-BOOT`: 关闭 smoke 主流程分流后，上电直接显示 `MAIN MENU`。
 - [ ] `F1-DEBUG`: `DEBUG/ADC` 页稳定显示 `RAW/MV/VDDA/STAT`。
