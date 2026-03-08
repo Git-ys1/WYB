@@ -7,12 +7,14 @@
 #include "../BSP/bsp_keys.h"
 #include "../Drivers/drv_adc_internal.h"
 #include "../Drivers/drv_beep.h"
+#include "../Measurements/measure_res.h"
 #include "app_bootdiag.h"
 #include "app_display_service.h"
 #include "app_menu_tree.h"
 #include "app_ui_presenter.h"
 
 #define UI_REFRESH_MS 200u
+#define RES_RUN_UI_REFRESH_MS 100u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
 #define BOOT_DIAG_STABLE_MS 3000u
@@ -35,6 +37,7 @@ typedef struct {
     uint32_t next_debug_adc_ms;
     uint32_t next_meas_ms;
     bool ui_dirty;
+    res_live_sample_t res_live;
 } app_ctx_t;
 
 static app_ctx_t g_app;
@@ -119,6 +122,9 @@ void app_init(void)
 
     g_app.meas_run_enabled = false;
     g_app.vdda_mv = 3300u;
+    g_app.res_live.valid = false;
+    g_app.res_live.stat = RES_STAT_ERR;
+    g_app.res_live.err = ERR_NOT_IMPL;
 
     g_app.adc_init_err = adc1_init();
     g_app.adc_last_err = g_app.adc_init_err;
@@ -158,6 +164,8 @@ void app_poll_button(void)
         }
     }
 
+    g_app.meas_run_enabled = app_menu_is_run_page(&g_app.menu);
+
     if (changed) {
         g_app.ui_dirty = true;
         g_app.next_ui_ms = now;
@@ -179,6 +187,9 @@ void app_measure_tick(void)
     if (!g_app.meas_run_enabled) {
         return;
     }
+
+    (void)measure_res_manual_sample(g_app.menu.res_range_sel, &g_app.res_live);
+    g_app.ui_dirty = true;
 }
 
 void app_ui_tick(void)
@@ -188,6 +199,7 @@ void app_ui_tick(void)
     app_runtime_data_t rt;
     app_err_t err;
     uint32_t elapsed_ms;
+    uint32_t ui_refresh_ms;
 
     app_display_poll();
     auto_unlock_menu_if_due(now);
@@ -199,10 +211,12 @@ void app_ui_tick(void)
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;
     }
 
+    ui_refresh_ms = app_menu_is_run_page(&g_app.menu) ? RES_RUN_UI_REFRESH_MS : UI_REFRESH_MS;
+
     if ((int32_t)(now - g_app.next_ui_ms) < 0) {
         return;
     }
-    g_app.next_ui_ms = now + UI_REFRESH_MS;
+    g_app.next_ui_ms = now + ui_refresh_ms;
 
     if (!g_app.ui_dirty) {
         return;
@@ -229,6 +243,12 @@ void app_ui_tick(void)
     rt.fault = bootdiag_get_fault();
     rt.display_ready = app_display_ready();
     rt.menu_enabled = app_menu_is_unlocked(&g_app.menu);
+    rt.res_valid = g_app.res_live.valid;
+    rt.res_raw_u16 = g_app.res_live.raw_u16;
+    rt.res_mv = g_app.res_live.mv;
+    rt.res_ohm = g_app.res_live.r_ohm;
+    rt.res_stat = (uint8_t)g_app.res_live.stat;
+    rt.res_is_exp = measure_res_range_is_exp(g_app.menu.res_range_sel);
     if (elapsed_ms >= BOOT_DIAG_STABLE_MS) {
         rt.menu_wait_sec = 0u;
     } else {

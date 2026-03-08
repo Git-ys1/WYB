@@ -32,8 +32,6 @@ typedef struct {
 
 static const key_pin_desc_t k_key_desc[KEY_COUNT] = {
     [KEY_OK] = {GPIOC, GPIO_PIN_13},
-    [KEY_UP] = {GPIOB, GPIO_PIN_0},
-    [KEY_DOWN] = {GPIOB, GPIO_PIN_1},
     [KEY_LEFT] = {GPIOB, GPIO_PIN_2},
     [KEY_RIGHT] = {GPIOB, GPIO_PIN_10},
     [KEY_BACK] = {GPIOB, GPIO_PIN_11}
@@ -85,7 +83,7 @@ void bsp_keys_init(void)
     init.Pin = GPIO_PIN_13;
     HAL_GPIO_Init(GPIOC, &init);
 
-    init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_11;
+    init.Pin = GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_11;
     HAL_GPIO_Init(GPIOB, &init);
 
     memset(g_keys, 0, sizeof(g_keys));

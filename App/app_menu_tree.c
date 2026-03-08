@@ -112,8 +112,10 @@ bool app_menu_allows_adc_updates(const menu_state_t *state)
 
 bool app_menu_is_run_page(const menu_state_t *state)
 {
-    (void)state;
-    return false;
+    if (state == NULL) {
+        return false;
+    }
+    return (state->page == UI_RES_RUN);
 }
 
 const char *app_menu_res_range_name(uint8_t sel)
@@ -139,14 +141,10 @@ void app_menu_handle_key(menu_state_t *state, key_id_t key)
         break;
 
     case UI_MAIN_MENU:
-        if (key == KEY_UP) {
+        if (key == KEY_LEFT) {
             state->main_sel = sel_step(state->main_sel, -1, MAIN_ITEM_COUNT);
-        } else if (key == KEY_DOWN) {
-            state->main_sel = sel_step(state->main_sel, 1, MAIN_ITEM_COUNT);
-        } else if (key == KEY_LEFT) {
-            state->main_sel = MAIN_ITEM_DEBUG;
         } else if (key == KEY_RIGHT) {
-            state->main_sel = MAIN_ITEM_MEASURE;
+            state->main_sel = sel_step(state->main_sel, 1, MAIN_ITEM_COUNT);
         } else if (key == KEY_OK) {
             state->page = (state->main_sel == MAIN_ITEM_DEBUG) ? UI_DEBUG_MENU : UI_MEASURE_MENU;
         } else if (key == KEY_BACK) {
@@ -155,9 +153,9 @@ void app_menu_handle_key(menu_state_t *state, key_id_t key)
         break;
 
     case UI_DEBUG_MENU:
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
+        if (key == KEY_LEFT) {
             state->debug_sel = sel_step(state->debug_sel, -1, DEBUG_ITEM_COUNT);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
+        } else if (key == KEY_RIGHT) {
             state->debug_sel = sel_step(state->debug_sel, 1, DEBUG_ITEM_COUNT);
         } else if (key == KEY_OK) {
             state->page = (state->debug_sel == DEBUG_ITEM_ADC) ? UI_DEBUG_ADC : UI_BOOT_INFO;
@@ -174,9 +172,9 @@ void app_menu_handle_key(menu_state_t *state, key_id_t key)
         break;
 
     case UI_MEASURE_MENU:
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
+        if (key == KEY_LEFT) {
             state->measure_sel = sel_step(state->measure_sel, -1, MEASURE_ITEM_COUNT);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
+        } else if (key == KEY_RIGHT) {
             state->measure_sel = sel_step(state->measure_sel, 1, MEASURE_ITEM_COUNT);
         } else if (key == KEY_OK) {
             if (state->measure_sel == MEASURE_ITEM_RES) {
@@ -196,9 +194,9 @@ void app_menu_handle_key(menu_state_t *state, key_id_t key)
         break;
 
     case UI_RES_RANGE:
-        if ((key == KEY_UP) || (key == KEY_LEFT)) {
+        if (key == KEY_LEFT) {
             state->res_range_sel = sel_step(state->res_range_sel, -1, RES_RANGE_COUNT);
-        } else if ((key == KEY_DOWN) || (key == KEY_RIGHT)) {
+        } else if (key == KEY_RIGHT) {
             state->res_range_sel = sel_step(state->res_range_sel, 1, RES_RANGE_COUNT);
         } else if (key == KEY_OK) {
             state->page = UI_RES_READY;
@@ -208,6 +206,14 @@ void app_menu_handle_key(menu_state_t *state, key_id_t key)
         break;
 
     case UI_RES_READY:
+        if (key == KEY_OK) {
+            state->page = UI_RES_RUN;
+        } else if (key == KEY_BACK) {
+            state->page = UI_RES_RANGE;
+        }
+        break;
+
+    case UI_RES_RUN:
         if (key == KEY_BACK) {
             state->page = UI_RES_RANGE;
         }
@@ -269,7 +275,7 @@ static void build_main_menu_frame(const menu_state_t *state, app_ui_frame_t *fra
     frame_set_linef(frame, 0u, "MAIN MENU");
     frame_set_linef(frame, 1u, "%c %s", (state->main_sel == MAIN_ITEM_DEBUG) ? '>' : ' ', k_main_name[0]);
     frame_set_linef(frame, 2u, "%c %s", (state->main_sel == MAIN_ITEM_MEASURE) ? '>' : ' ', k_main_name[1]);
-    frame_set_linef(frame, 6u, "UP/DN/LR:SEL");
+    frame_set_linef(frame, 6u, "L/R:SEL");
     frame_set_linef(frame, 7u, "OK:ENTER BACK");
 }
 
@@ -356,6 +362,73 @@ static void build_ready_frame(const menu_state_t *state, app_ui_frame_t *frame, 
     frame_set_linef(frame, 7u, "BACK");
 }
 
+static const char *res_stat_text(uint8_t stat)
+{
+    switch (stat) {
+    case 0u:
+        return "OK";
+    case 1u:
+        return "OPEN";
+    case 2u:
+        return "SHORT";
+    case 3u:
+        return "OVR";
+    default:
+        return "ERR";
+    }
+}
+
+static void build_res_run_value(float ohm, char *out, size_t out_size)
+{
+    uint32_t k_int;
+    uint32_t k_frac;
+    uint32_t tenth;
+
+    if ((out == NULL) || (out_size == 0u)) {
+        return;
+    }
+
+    if (ohm >= 1000.0f) {
+        uint32_t whole = (uint32_t)(ohm + 0.5f);
+        k_int = whole / 1000u;
+        k_frac = whole % 1000u;
+        (void)snprintf(out, out_size, "%lu.%03luK", (unsigned long)k_int, (unsigned long)k_frac);
+    } else {
+        tenth = (uint32_t)(ohm * 10.0f + 0.5f);
+        (void)snprintf(out, out_size, "%lu.%lu",
+                       (unsigned long)(tenth / 10u),
+                       (unsigned long)(tenth % 10u));
+    }
+}
+
+static void build_res_run_frame(const menu_state_t *state, const app_runtime_data_t *rt, app_ui_frame_t *frame)
+{
+    char r_text[16] = {0};
+
+    if (rt->res_is_exp) {
+        frame_set_linef(frame, 0u, "RES RUN %s EXP", app_menu_res_range_name(state->res_range_sel));
+    } else {
+        frame_set_linef(frame, 0u, "RES RUN %s", app_menu_res_range_name(state->res_range_sel));
+    }
+
+    if (rt->res_valid && (rt->res_stat == 0u)) {
+        build_res_run_value(rt->res_ohm, r_text, sizeof(r_text));
+        frame_set_linef(frame, 1u, "R: %s", r_text);
+    } else {
+        frame_set_linef(frame, 1u, "R: ----");
+    }
+
+    if (rt->res_valid) {
+        frame_set_linef(frame, 2u, "MV: %lu", (unsigned long)rt->res_mv);
+        frame_set_linef(frame, 3u, "RAW:%u", (unsigned)rt->res_raw_u16);
+    } else {
+        frame_set_linef(frame, 2u, "MV: ----");
+        frame_set_linef(frame, 3u, "RAW:----");
+    }
+    frame_set_linef(frame, 4u, "STAT:%s", res_stat_text(rt->res_stat));
+    frame_set_linef(frame, 7u, "BACK:RANGE");
+}
+
 void app_menu_build_frame(const menu_state_t *state, const app_runtime_data_t *rt, app_ui_frame_t *frame)
 {
     if ((state == NULL) || (rt == NULL) || (frame == NULL)) {
@@ -388,6 +461,9 @@ void app_menu_build_frame(const menu_state_t *state, const app_runtime_data_t *r
         break;
     case UI_RES_READY:
         build_ready_frame(state, frame, "RES READY");
+        break;
+    case UI_RES_RUN:
+        build_res_run_frame(state, rt, frame);
         break;
     case UI_VDC_READY:
         build_ready_frame(state, frame, "VDC READY");

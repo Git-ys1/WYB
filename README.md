@@ -51,7 +51,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 ## 当前实现范围
 - 统一显示链路：`app -> presenter -> app_display_service -> oled_smoke`（单写者）。
-- 6 键菜单输入（运行时代码初始化，不依赖 `.ioc` 按键配置）。
+- 4 键菜单输入（运行时代码初始化，不依赖 `.ioc` 按键配置）。
 - 菜单树（浏览态）：
   - `UI_DIAG`
   - `UI_MAIN_MENU`
@@ -60,8 +60,10 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `UI_BOOT_INFO`
   - `UI_MEASURE_MENU`
   - `UI_RES_RANGE`
-  - `UI_RES_READY / UI_VDC_READY / UI_FREQ_READY / UI_CONT_READY / UI_DIODE_READY`
-- 所有功能页当前为 READY 占位，`RUN` 未启用。
+  - `UI_RES_READY / UI_RES_RUN`
+  - `UI_VDC_READY / UI_FREQ_READY / UI_CONT_READY / UI_DIODE_READY`
+- `RES_RUN` 已启用手动电阻 live 页面（优先 2K/20K/200K，200 为实验档）。
+- `VDC/FREQ/CONT/DIODE` 仍为 READY 占位。
 - 片内 ADC 驱动：
   - `adc1_init`
   - `adc1_read_raw_u16`
@@ -83,10 +85,10 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 当前菜单恢复范围：`L1_MODULE / L2_DEBUG_PAGE / L2_MEAS_FUNC / L3_RES_RANGE / L4_RES_READY`
 - 本轮仍保持测量懒启动：非 `RES_RUN` 页面不启动真实测量。
 
-## T-1.1.6A-R1 范围声明
-- 在不改显示底层的前提下恢复完整菜单浏览树。
-- 上电先进入诊断页，3 秒后自动解锁菜单；`OK` 可立即进入菜单。
-- 本轮不启用任何真实测量运行，保持 `RUN DISABLED` 占位。
+## T-1.1.7-R1 范围声明
+- 在不改显示底层的前提下保留完整菜单浏览树。
+- 输入从 6 键收缩为 4 键：`LEFT/RIGHT/OK/BACK`。
+- 启用 `UI_RES_RUN`（手动电阻 live），非运行页测量继续门控。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -104,10 +106,8 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `蓝=PE3`
   - `红=PE4`
   - `绿=PE5`
-- 六键：
+- 四键：
   - `OK=PC13`
-  - `UP=PB0`
-  - `DOWN=PB1`
   - `LEFT=PB2`
   - `RIGHT=PB10`
   - `BACK=PB11`

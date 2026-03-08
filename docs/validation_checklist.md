@@ -1,5 +1,17 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.7-R1 4-Key + RES Manual Live
+- [ ] `R7-KEY-01`: 代码中不再产生 `KEY_UP/KEY_DOWN` 事件。
+- [ ] `R7-KEY-02`: 仅用 `LEFT/RIGHT/OK/BACK` 可完整浏览菜单树。
+- [ ] `R7-PATH-03`: 可进入 `MEASURE -> RES -> RANGE -> READY -> RUN`。
+- [ ] `R7-RUN-04`: `UI_RES_RUN` 实时显示 `R/MV/RAW/STAT`。
+- [ ] `R7-TREND-05`: 更换电阻后 `R` 趋势正确（2K/20K/200K 各至少一次）。
+- [ ] `R7-200-06`: 200 档显示实验标识（`EXP`）。
+- [ ] `R7-GATE-07`: 非 `UI_RES_RUN` 页面 `app_measure_tick()` 不执行电阻采样。
+- [ ] `R7-STABLE-08`: 连续 5 分钟无黑屏/花屏。
+- [ ] `R7-SPINE-09`: 断开 OLED 时 PB12 诊断行为保持。
+- [ ] `R7-SINGLE-WRITER-10`: 正式路径仍只有 display service 的 flush 调用点。
+
 ## T-1.1.6A-R1 Menu Tree Browsing (Run Disabled)
 - [ ] `A6-BOOT-DIAG`: 上电进入诊断页，连续 5 分钟无黑屏/花屏。
 - [ ] `A6-DIAG-GATE`: 3 秒后自动解锁菜单；3 秒内按 `OK` 可立即进菜单。

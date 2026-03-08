@@ -17,6 +17,7 @@ typedef enum {
     UI_MEASURE_MENU,
     UI_RES_RANGE,
     UI_RES_READY,
+    UI_RES_RUN,
     UI_VDC_READY,
     UI_FREQ_READY,
     UI_CONT_READY,
@@ -45,6 +46,12 @@ typedef struct {
     bool display_ready;
     bool menu_enabled;
     uint32_t menu_wait_sec;
+    bool res_valid;
+    bool res_is_exp;
+    uint16_t res_raw_u16;
+    uint32_t res_mv;
+    float res_ohm;
+    uint8_t res_stat;
 } app_runtime_data_t;
 
 void app_menu_init(menu_state_t *state);

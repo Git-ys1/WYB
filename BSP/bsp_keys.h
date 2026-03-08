@@ -6,8 +6,6 @@
 
 typedef enum {
     KEY_OK = 0,
-    KEY_UP,
-    KEY_DOWN,
     KEY_LEFT,
     KEY_RIGHT,
     KEY_BACK,
