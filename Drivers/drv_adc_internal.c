@@ -8,11 +8,37 @@
 #define ADC_FILTER_SAMPLES 16u
 #define ADC_POLL_TIMEOUT_MS 10u
 #define ADC_FALLBACK_VDDA_MV 3300u
+#define ADC_INPUT_SETTLE_US_DEFAULT 200u
 
 static ADC_HandleTypeDef g_hadc1;
 static uint32_t g_active_channel = 0xFFFFFFFFu;
 static app_err_t g_last_status = ERR_NOT_IMPL;
 static bool g_adc_ready;
+static bool g_need_input_settle = true;
+static uint16_t g_input_settle_us = ADC_INPUT_SETTLE_US_DEFAULT;
+
+static void adc_delay_us(uint32_t us)
+{
+    uint32_t start;
+    uint32_t ticks;
+
+    if (us == 0u) {
+        return;
+    }
+
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+    start = DWT->CYCCNT;
+    ticks = (SystemCoreClock / 1000000u) * us;
+    if (ticks == 0u) {
+        ticks = 1u;
+    }
+
+    while ((DWT->CYCCNT - start) < ticks) {
+        /* wait */
+    }
+}
 
 static app_err_t adc1_set_channel(uint32_t channel)
 {
@@ -39,6 +65,7 @@ static app_err_t adc1_set_channel(uint32_t channel)
     }
 
     g_active_channel = channel;
+    g_need_input_settle = true;
     return ERR_OK;
 }
 
@@ -81,6 +108,11 @@ static app_err_t adc1_single_read_dummy2(uint16_t *raw)
 {
     app_err_t err;
     uint16_t dummy;
+
+    if (g_need_input_settle && (g_input_settle_us > 0u)) {
+        adc_delay_us(g_input_settle_us);
+        g_need_input_settle = false;
+    }
 
     err = adc1_single_read_once(&dummy);
     if (err != ERR_OK) {
@@ -140,8 +172,20 @@ app_err_t adc1_init(void)
 
     g_active_channel = 0xFFFFFFFFu;
     g_adc_ready = true;
+    g_need_input_settle = true;
+    g_input_settle_us = ADC_INPUT_SETTLE_US_DEFAULT;
     g_last_status = ERR_OK;
     return ERR_OK;
+}
+
+void adc1_mark_input_path_changed(void)
+{
+    g_need_input_settle = true;
+}
+
+void adc1_set_input_settle_us(uint16_t settle_us)
+{
+    g_input_settle_us = settle_us;
 }
 
 app_err_t adc1_read_raw_u16(uint16_t *raw)
@@ -157,7 +201,7 @@ app_err_t adc1_read_raw_u16(uint16_t *raw)
         return err;
     }
 
-    return adc1_single_read_once(raw);
+    return adc1_single_read_dummy2(raw);
 }
 
 app_err_t adc1_read_opamp1_raw_u16(uint16_t *raw)

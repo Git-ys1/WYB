@@ -65,11 +65,12 @@ struct app_ctx_s {
     uint32_t dbg_vdda_mv;
 
     res_sample_t res_sample;
+    res_range_binding_t res_binding;
     res_afe_health_t res_health;
     bool res_afe_ok;
     bool res_calc_ok;
     app_err_t res_calc_err;
-    float res_r_ohm;
+    float res_r_calc_ohm;
     res_display_text_t res_disp;
 
     uint32_t next_meas_ms;
@@ -180,13 +181,27 @@ static void ui_update_debug_adc_sample(void)
 static void measure_tick_res(app_ctx_t *ctx)
 {
     app_err_t err;
+    bool have_binding;
+    bool display_calc_ok;
+
+    have_binding = measure_res_get_binding(ctx->res_range_sel, &ctx->res_binding);
+    if (!have_binding) {
+        ctx->res_afe_ok = false;
+        ctx->res_calc_ok = false;
+        ctx->res_calc_err = ERR_INVALID_ARG;
+        ctx->res_r_calc_ohm = 0.0f;
+        res_format_display(NULL, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
+        ctx->ui_dirty = true;
+        return;
+    }
 
     err = res_acquire_sample(ctx->res_range_sel, &ctx->res_sample);
     if (err != ERR_OK) {
         ctx->res_afe_ok = false;
         ctx->res_calc_ok = false;
         ctx->res_calc_err = err;
-        res_format_display(ctx->res_range_sel, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
+        ctx->res_r_calc_ohm = 0.0f;
+        res_format_display(&ctx->res_binding, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
         ctx->ui_dirty = true;
         return;
     }
@@ -195,20 +210,18 @@ static void measure_tick_res(app_ctx_t *ctx)
     ctx->res_health = res_afe_diag_get(ctx->res_range_sel);
     ctx->res_afe_ok = res_check_afe_health(ctx->res_range_sel, &ctx->res_sample);
 
-    if (ctx->res_afe_ok) {
-        ctx->res_calc_err = res_estimate_rx(ctx->res_range_sel, &ctx->res_sample, &ctx->res_r_ohm);
-        ctx->res_calc_ok = (ctx->res_calc_err == ERR_OK);
-    } else {
-        ctx->res_calc_ok = false;
-        ctx->res_calc_err = ERR_HW_FAIL;
-        ctx->res_r_ohm = 0.0f;
+    ctx->res_calc_err = res_estimate_rx(ctx->res_range_sel, &ctx->res_sample, &ctx->res_r_calc_ohm);
+    ctx->res_calc_ok = (ctx->res_calc_err == ERR_OK);
+    if (!ctx->res_calc_ok) {
+        ctx->res_r_calc_ohm = 0.0f;
     }
 
-    res_format_display(ctx->res_range_sel,
+    display_calc_ok = ctx->res_afe_ok && ctx->res_calc_ok;
+    res_format_display(&ctx->res_binding,
                        &ctx->res_sample,
                        ctx->res_afe_ok,
-                       ctx->res_calc_ok,
-                       ctx->res_r_ohm,
+                       display_calc_ok,
+                       ctx->res_r_calc_ohm,
                        &ctx->res_disp);
     ctx->ui_dirty = true;
 }
@@ -294,6 +307,30 @@ static bool is_short_up_event(const key_event_t *evt, bool long_fired)
     return (evt->duration_ms >= KEY_SHORT_MIN_MS);
 }
 
+static void format_rcalc_line(char *out, size_t out_sz, bool valid, float r_calc_ohm)
+{
+    uint32_t scaled;
+
+    if ((out == NULL) || (out_sz == 0u)) {
+        return;
+    }
+
+    if (!valid) {
+        (void)snprintf(out, out_sz, "RCALC:----");
+        return;
+    }
+
+    if (r_calc_ohm < 0.0f) {
+        (void)snprintf(out, out_sz, "RCALC:<0");
+        return;
+    }
+
+    scaled = (uint32_t)(r_calc_ohm * 10.0f + 0.5f);
+    (void)snprintf(out, out_sz, "RCALC:%lu.%01lu",
+                   (unsigned long)(scaled / 10u),
+                   (unsigned long)(scaled % 10u));
+}
+
 static void build_main_frame(app_ui_frame_t *frame)
 {
     const mode_desc_t *md = active_mode_desc();
@@ -333,26 +370,32 @@ static void build_debug_frame(app_ui_frame_t *frame)
     const mode_desc_t *md = active_mode_desc();
     const char *range = md->range_name_fn(&g_app);
     const res_sample_t *s = &g_app.res_sample;
+    char rc_line[22];
+    bool rcalc_valid;
 
     memset(frame, 0, sizeof(*frame));
 
-    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s", md->title);
+    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s OP1", md->title);
     if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP", range);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP M:%u", range, (unsigned)g_app.res_binding.mux_idx);
     } else {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s", range);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s M:%u", range, (unsigned)g_app.res_binding.mux_idx);
     }
+
+    rcalc_valid = (s->valid && (g_app.res_calc_err == ERR_OK));
+    format_rcalc_line(rc_line, sizeof(rc_line), rcalc_valid, g_app.res_r_calc_ohm);
 
     if ((g_app.mode == MODE_RES) && s->valid) {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)s->raw_u16);
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)s->mv);
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:%lu", (unsigned long)s->vdda_mv);
-        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "AFE:OP1 S:%u O:%u",
-                       g_app.res_health.short_seen ? 1u : 0u,
-                       g_app.res_health.open_seen ? 1u : 0u);
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "K:%u %.15s",
-                       g_app.res_afe_ok ? 1u : 0u,
-                       g_app.res_disp.line_stat);
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RREF:%lu/%lu",
+                       (unsigned long)g_app.res_binding.param.rref_nom_ohm,
+                       (unsigned long)g_app.res_binding.param.rref_eff_ohm);
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "%s", rc_line);
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "S:%.7s D:%.9s",
+                       g_app.res_disp.stat_str,
+                       g_app.res_disp.r_disp_str);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -369,11 +412,15 @@ static void build_debug_frame(app_ui_frame_t *frame)
         } else {
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:----");
         }
-        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "AFE:OP1");
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT: READY");
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RREF:----/----");
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "RCALC:----");
+        if (g_app.adc_last_err == ERR_OK) {
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "S:OK D:----");
+        } else {
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "S:ERR%u D:----",
+                           (unsigned)g_app.adc_last_err);
+        }
     }
-
-    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "LEFT:BACK");
 }
 
 void app_init(void)
@@ -401,7 +448,8 @@ void app_init(void)
     for (i = 0u; i < RES_RANGE_SEL_COUNT; i++) {
         res_afe_diag_reset(i);
     }
-    res_format_display(g_app.res_range_sel, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
+    (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
+    res_format_display(&g_app.res_binding, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
 
     bootdiag_set_stage(BOOT_DISPLAY_INIT);
     err = app_ui_presenter_init();

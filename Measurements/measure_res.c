@@ -8,25 +8,51 @@
 #include "../Drivers/drv_opamp_internal.h"
 
 typedef struct {
+    const char *range_name;
     mux_res_range_t mux_range;
+    uint8_t mux_idx;
+    res_formatter_id_t formatter_id;
     res_range_param_t param;
 } range_cfg_t;
 
-static const char *k_range_name[RES_RANGE_SEL_COUNT] = {
-    "AUTO",
-    "200",
-    "2K",
-    "20K",
-    "200K"
-};
-
 static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
-    [RES_RANGE_SEL_AUTO] = {MUX_RES_200R, {.enabled = false, .exp_range = false, .rref_nom_ohm = 0.0f, .rref_eff_ohm = 0.0f}},
-    [RES_RANGE_SEL_200] = {MUX_RES_200R, {.enabled = true, .exp_range = true, .rref_nom_ohm = 100.0f, .rref_eff_ohm = 100.0f}},
-    [RES_RANGE_SEL_2K] = {MUX_RES_2K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000.0f, .rref_eff_ohm = 1000.0f}},
-    [RES_RANGE_SEL_20K] = {MUX_RES_20K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 10000.0f, .rref_eff_ohm = 10000.0f}},
-    [RES_RANGE_SEL_200K] = {MUX_RES_200K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 100000.0f, .rref_eff_ohm = 100000.0f}}
+    [RES_RANGE_SEL_AUTO] = {
+        .range_name = "AUTO",
+        .mux_range = MUX_RES_200R,
+        .mux_idx = 0u,
+        .formatter_id = RES_FMT_NONE,
+        .param = {.enabled = false, .exp_range = false, .rref_nom_ohm = 0.0f, .rref_eff_ohm = 0.0f, .gain_corr = 1.0f}
+    },
+    [RES_RANGE_SEL_200] = {
+        .range_name = "200",
+        .mux_range = MUX_RES_200R,
+        .mux_idx = 0u,
+        .formatter_id = RES_FMT_200,
+        .param = {.enabled = true, .exp_range = true, .rref_nom_ohm = 100.0f, .rref_eff_ohm = 100.0f, .gain_corr = 1.0f}
+    },
+    [RES_RANGE_SEL_2K] = {
+        .range_name = "2K",
+        .mux_range = MUX_RES_2K,
+        .mux_idx = 1u,
+        .formatter_id = RES_FMT_2K,
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000.0f, .rref_eff_ohm = 1000.0f, .gain_corr = 1.0f}
+    },
+    [RES_RANGE_SEL_20K] = {
+        .range_name = "20K",
+        .mux_range = MUX_RES_20K,
+        .mux_idx = 2u,
+        .formatter_id = RES_FMT_20K,
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 10000.0f, .rref_eff_ohm = 10000.0f, .gain_corr = 1.0f}
+    },
+    [RES_RANGE_SEL_200K] = {
+        .range_name = "200K",
+        .mux_range = MUX_RES_200K,
+        .mux_idx = 3u,
+        .formatter_id = RES_FMT_200K,
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 100000.0f, .rref_eff_ohm = 100000.0f, .gain_corr = 1.0f}
+    }
 };
+static uint8_t s_last_range_sel = 0xFFu;
 
 static void sample_reset(res_sample_t *out)
 {
@@ -44,7 +70,7 @@ const char *measure_res_range_name(uint8_t range_sel)
     if (range_sel >= RES_RANGE_SEL_COUNT) {
         return "UNK";
     }
-    return k_range_name[range_sel];
+    return k_range_cfg[range_sel].range_name;
 }
 
 bool measure_res_range_is_exp(uint8_t range_sel)
@@ -61,6 +87,22 @@ const res_range_param_t *measure_res_get_range_param(uint8_t range_sel)
         return NULL;
     }
     return &k_range_cfg[range_sel].param;
+}
+
+bool measure_res_get_binding(uint8_t range_sel, res_range_binding_t *out)
+{
+    const range_cfg_t *cfg;
+
+    if ((range_sel >= RES_RANGE_SEL_COUNT) || (out == NULL)) {
+        return false;
+    }
+
+    cfg = &k_range_cfg[range_sel];
+    out->range_name = cfg->range_name;
+    out->mux_idx = cfg->mux_idx;
+    out->formatter_id = cfg->formatter_id;
+    out->param = cfg->param;
+    return true;
 }
 
 const char *measure_res_stat_name(res_live_stat_t stat)
@@ -86,6 +128,7 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
     app_err_t err;
     uint32_t vdda_mv = 3300u;
     const range_cfg_t *cfg;
+    bool path_changed;
 
     if ((s == NULL) || (range_sel >= RES_RANGE_SEL_COUNT)) {
         return ERR_INVALID_ARG;
@@ -103,8 +146,13 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
         return s->err;
     }
 
+    path_changed = (s_last_range_sel != range_sel);
     mux_set_mode(MUX_MODE_RES);
     mux_set_res_range(cfg->mux_range);
+    if (path_changed) {
+        adc1_mark_input_path_changed();
+        s_last_range_sel = range_sel;
+    }
 
     err = adc1_read_opamp1_filtered(&s->raw_u16, &s->mv);
     if (err != ERR_OK) {
@@ -123,12 +171,12 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
     return ERR_OK;
 }
 
-app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm)
+app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_calc_ohm)
 {
     float denom_mv;
     const range_cfg_t *cfg;
 
-    if ((s == NULL) || (r_ohm == NULL) || (range_sel >= RES_RANGE_SEL_COUNT)) {
+    if ((s == NULL) || (r_calc_ohm == NULL) || (range_sel >= RES_RANGE_SEL_COUNT)) {
         return ERR_INVALID_ARG;
     }
 
@@ -145,6 +193,6 @@ app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm
         return ERR_OVERRANGE;
     }
 
-    *r_ohm = cfg->param.rref_eff_ohm * ((float)s->mv / denom_mv);
+    *r_calc_ohm = cfg->param.rref_eff_ohm * cfg->param.gain_corr * ((float)s->mv / denom_mv);
     return ERR_OK;
 }

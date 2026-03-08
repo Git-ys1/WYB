@@ -1,5 +1,19 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.10-R1 RES 10x Error Localization
+- [ ] `R10-TITLE-01`: `RES/VDC` 第一行标题稳定正确（不反置）。
+- [ ] `R10-KEY-01`: RIGHT 短按/长按体验正常，LEFT 短按进退 Debug 正常。
+- [ ] `R10-DBG-01`: RES Debug 页同屏可见 `MUX/RREF/R_CALC/R_DISP/RAW/MV/VDDA/STAT`。
+- [ ] `R10-UNIT-01`: 单位审计完成（raw=count, mv/vdda=mV, rref/r_calc=Ω）。
+- [ ] `R10-BIND-01`: 档位绑定表统一 `title+mux+rref+formatter`，无分散 switch 错位。
+- [ ] `R10-ADC-01`: RES采样执行 `dummy-first`，量程切换后执行 settle（默认 200us）。
+- [ ] `R10-RES-2K`: 2K 档可记录并判断 `R_CALC` 与 `R_DISP` 是否一致。
+- [ ] `R10-RES-20K`: 20K 档可记录并判断 `R_CALC` 与 `R_DISP` 是否一致。
+- [ ] `R10-RES-200K`: 200K 档可记录并判断 `R_CALC` 与 `R_DISP` 是否一致。
+- [ ] `R10-AFE-01`: 正式页端点不过时固定 `R: ---- / STAT: AFE BAD`。
+- [ ] `R10-RANGE-01`: 200 档继续标记 `EXP`，不作为本轮主验收。
+- [ ] `R10-STABLE-01`: 连续运行 5 分钟无黑屏/花屏，单写者未破坏。
+
 ## T-1.1.9-R1 Competition-Key + OPAMP1 RES Chain
 - [ ] `R9-TITLE-01`: `RES` 与 `VDC` 第一行标题正确，无反置。
 - [ ] `R9-KEY-01`: `RIGHT` 短按在 `UP` 触发切档，长按触发切功能，体验无迟钝/断触。

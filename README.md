@@ -106,6 +106,13 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - RES 正式采样迁移：`RED -> PA1(OPAMP1 follower) -> ADC VOPAMP1`，`TL072->PC0` 退出正式测量链。
 - 端点门控：`SHORT(<50mV)` 与 `OPEN(>0.9*VDDA)` 均通过后才显示电阻值，否则固定 `AFE BAD`。
 
+## T-1.1.10-R1 范围声明
+- 目标聚焦 `2K/20K/200K` 的 10x 误差定位：先分离 `R_CALC(公式值, Ω)` 与 `R_DISP(显示串)`，再判断错误落点。
+- RES 档位统一改为单表驱动绑定：`档位名 + MUX通道 + Rref(nom/eff) + formatter`，避免多处 switch 错位。
+- RES 采样链继续执行 G4 workaround：`dummy-first`（丢首样取次样）+ 量程/通道切换后 settle（默认 `200us`）。
+- Debug(RES) 页固定用于诊断：`MUX / RREF / R_CALC / R_DISP / RAW / MV / VDDA / STAT`。
+- 正式页仍保留 AFE 门控：端点不过只显示 `R: ----` 与 `STAT: AFE BAD`；200 档继续 `EXP`。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
