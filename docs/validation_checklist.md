@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.11-R1 Rref_eff Alignment + Live Window Gate
+- [ ] `R11-RREF-01`: `RREF_NOM/RREF_EFF` 与实测本体值一致（200/2K/20K/200K -> 1k/10k/100k/1M）。
+- [ ] `R11-CALC-01`: `2K/20K/200K` 三档下 `R_CALC` 不再稳定偏 10x。
+- [ ] `R11-DISP-01`: `R_DISP` 仅承担格式化，不再引入额外 decade 偏差。
+- [ ] `R11-GATE-01`: 正式页不再要求先 short/open 一次才显示。
+- [ ] `R11-GATE-02`: 当前样本为 `SHORT/OPEN` 时，正式页显示 `R: ----` 与对应状态。
+- [ ] `R11-DBG-01`: RES Debug 页同屏可见 `MUX/RN/RE/R_CALC/R_DISP/RAW/MV/VDDA/STAT`。
+- [ ] `R11-RANGE-01`: 200 档继续 `EXP`，主验收仍以 `2K/20K/200K` 为准。
+- [ ] `R11-STABLE-01`: 连续运行 5 分钟无黑屏/花屏，单写者不破坏。
+
 ## T-1.1.10-R1 RES 10x Error Localization
 - [ ] `R10-TITLE-01`: `RES/VDC` 第一行标题稳定正确（不反置）。
 - [ ] `R10-KEY-01`: RIGHT 短按/长按体验正常，LEFT 短按进退 Debug 正常。

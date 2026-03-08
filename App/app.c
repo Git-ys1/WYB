@@ -67,6 +67,7 @@ struct app_ctx_s {
     res_sample_t res_sample;
     res_range_binding_t res_binding;
     res_afe_health_t res_health;
+    res_afe_window_t res_window;
     bool res_afe_ok;
     bool res_calc_ok;
     app_err_t res_calc_err;
@@ -186,6 +187,7 @@ static void measure_tick_res(app_ctx_t *ctx)
 
     have_binding = measure_res_get_binding(ctx->res_range_sel, &ctx->res_binding);
     if (!have_binding) {
+        ctx->res_window = RES_AFE_WIN_INVALID;
         ctx->res_afe_ok = false;
         ctx->res_calc_ok = false;
         ctx->res_calc_err = ERR_INVALID_ARG;
@@ -197,6 +199,7 @@ static void measure_tick_res(app_ctx_t *ctx)
 
     err = res_acquire_sample(ctx->res_range_sel, &ctx->res_sample);
     if (err != ERR_OK) {
+        ctx->res_window = RES_AFE_WIN_INVALID;
         ctx->res_afe_ok = false;
         ctx->res_calc_ok = false;
         ctx->res_calc_err = err;
@@ -208,6 +211,7 @@ static void measure_tick_res(app_ctx_t *ctx)
 
     res_afe_diag_update(ctx->res_range_sel, &ctx->res_sample);
     ctx->res_health = res_afe_diag_get(ctx->res_range_sel);
+    ctx->res_window = res_afe_get_window(ctx->res_range_sel, &ctx->res_sample);
     ctx->res_afe_ok = res_check_afe_health(ctx->res_range_sel, &ctx->res_sample);
 
     ctx->res_calc_err = res_estimate_rx(ctx->res_range_sel, &ctx->res_sample, &ctx->res_r_calc_ohm);
@@ -223,6 +227,19 @@ static void measure_tick_res(app_ctx_t *ctx)
                        display_calc_ok,
                        ctx->res_r_calc_ohm,
                        &ctx->res_disp);
+    if (ctx->res_sample.valid) {
+        if (ctx->res_window == RES_AFE_WIN_SHORT) {
+            (void)snprintf(ctx->res_disp.r_disp_str, sizeof(ctx->res_disp.r_disp_str), "----");
+            (void)snprintf(ctx->res_disp.stat_str, sizeof(ctx->res_disp.stat_str), "SHORT");
+            (void)snprintf(ctx->res_disp.line_value, sizeof(ctx->res_disp.line_value), "R: %s", ctx->res_disp.r_disp_str);
+            (void)snprintf(ctx->res_disp.line_stat, sizeof(ctx->res_disp.line_stat), "STAT: %s", ctx->res_disp.stat_str);
+        } else if (ctx->res_window == RES_AFE_WIN_OPEN) {
+            (void)snprintf(ctx->res_disp.r_disp_str, sizeof(ctx->res_disp.r_disp_str), "----");
+            (void)snprintf(ctx->res_disp.stat_str, sizeof(ctx->res_disp.stat_str), "OPEN");
+            (void)snprintf(ctx->res_disp.line_value, sizeof(ctx->res_disp.line_value), "R: %s", ctx->res_disp.r_disp_str);
+            (void)snprintf(ctx->res_disp.line_stat, sizeof(ctx->res_disp.line_stat), "STAT: %s", ctx->res_disp.stat_str);
+        }
+    }
     ctx->ui_dirty = true;
 }
 
@@ -377,9 +394,9 @@ static void build_debug_frame(app_ui_frame_t *frame)
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s OP1", md->title);
     if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP M:%u", range, (unsigned)g_app.res_binding.mux_idx);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
     } else {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s M:%u", range, (unsigned)g_app.res_binding.mux_idx);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
     }
 
     rcalc_valid = (s->valid && (g_app.res_calc_err == ERR_OK));
@@ -389,13 +406,13 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)s->raw_u16);
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)s->mv);
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:%lu", (unsigned long)s->vdda_mv);
-        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RREF:%lu/%lu",
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RN:%lu RE:%lu",
                        (unsigned long)g_app.res_binding.param.rref_nom_ohm,
                        (unsigned long)g_app.res_binding.param.rref_eff_ohm);
         (void)snprintf(frame->line[6], sizeof(frame->line[6]), "%s", rc_line);
-        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "S:%.7s D:%.9s",
-                       g_app.res_disp.stat_str,
-                       g_app.res_disp.r_disp_str);
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "RD:%.7s ST:%.5s",
+                       g_app.res_disp.r_disp_str,
+                       g_app.res_disp.stat_str);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);

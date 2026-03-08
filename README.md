@@ -113,6 +113,20 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - Debug(RES) 页固定用于诊断：`MUX / RREF / R_CALC / R_DISP / RAW / MV / VDDA / STAT`。
 - 正式页仍保留 AFE 门控：端点不过只显示 `R: ----` 与 `STAT: AFE BAD`；200 档继续 `EXP`。
 
+## T-1.1.11-R1 范围声明
+- `Rref_eff` 对齐断电实测值（本体阻值，不用上电等效阻值）：
+  - `200 -> 1k`
+  - `2K -> 10k`
+  - `20K -> 100k`
+  - `200K -> 1M`
+- AFE 判定分离为两套：
+  - 历史端点（`short_seen/open_seen`）仅用于 Debug 记录；
+  - 正式页显示许可改为“当前采样窗口判定”（`SHORT/OPEN/MID`），不再要求先短接/开路一次。
+- 正式页行为：
+  - `SHORT`/`OPEN`：`R: ----`，显示对应状态；
+  - `MID`：允许显示 `R_CALC -> R_DISP`；
+  - 采样错误：`STAT: ERR`。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。

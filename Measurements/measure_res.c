@@ -28,28 +28,28 @@ static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
         .mux_range = MUX_RES_200R,
         .mux_idx = 0u,
         .formatter_id = RES_FMT_200,
-        .param = {.enabled = true, .exp_range = true, .rref_nom_ohm = 100.0f, .rref_eff_ohm = 100.0f, .gain_corr = 1.0f}
+        .param = {.enabled = true, .exp_range = true, .rref_nom_ohm = 1000.0f, .rref_eff_ohm = 1000.0f, .gain_corr = 1.0f}
     },
     [RES_RANGE_SEL_2K] = {
         .range_name = "2K",
         .mux_range = MUX_RES_2K,
         .mux_idx = 1u,
         .formatter_id = RES_FMT_2K,
-        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000.0f, .rref_eff_ohm = 1000.0f, .gain_corr = 1.0f}
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 10000.0f, .rref_eff_ohm = 10000.0f, .gain_corr = 1.0f}
     },
     [RES_RANGE_SEL_20K] = {
         .range_name = "20K",
         .mux_range = MUX_RES_20K,
         .mux_idx = 2u,
         .formatter_id = RES_FMT_20K,
-        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 10000.0f, .rref_eff_ohm = 10000.0f, .gain_corr = 1.0f}
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 100000.0f, .rref_eff_ohm = 100000.0f, .gain_corr = 1.0f}
     },
     [RES_RANGE_SEL_200K] = {
         .range_name = "200K",
         .mux_range = MUX_RES_200K,
         .mux_idx = 3u,
         .formatter_id = RES_FMT_200K,
-        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 100000.0f, .rref_eff_ohm = 100000.0f, .gain_corr = 1.0f}
+        .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000000.0f, .rref_eff_ohm = 1000000.0f, .gain_corr = 1.0f}
     }
 };
 static uint8_t s_last_range_sel = 0xFFu;
