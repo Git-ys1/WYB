@@ -1,5 +1,18 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.12-R1 RES AUTO Range
+- [ ] `A12-MANUAL-REG`: 手动四档（200/2K/20K/200K）无回归。
+- [ ] `A12-AUTO-ENTER`: 可进入 AUTO，页面稳定显示 `AUTO <locked_subrange>`。
+- [ ] `A12-AUTO-LOCK-100R`: 100Ω 最终锁到 200。
+- [ ] `A12-AUTO-LOCK-1K`: 1kΩ 最终锁到 2K。
+- [ ] `A12-AUTO-LOCK-10K`: 10kΩ 最终锁到 20K。
+- [ ] `A12-AUTO-LOCK-100K`: 100kΩ 最终锁到 200K。
+- [ ] `A12-AUTO-OPEN`: 开路显示 `OL`，并锁在 200K。
+- [ ] `A12-AUTO-SHORT`: 短路显示 `SHORT/近0`，并锁在 200。
+- [ ] `A12-AUTO-NO-CHATTER`: 分界点附近无来回狂跳（迟滞+投票生效）。
+- [ ] `A12-DBG-01`: Debug 可见 `AUTO_RNG` 与 `VOTE(U/D)`。
+- [ ] `A12-STABLE-5MIN`: 连续 5 分钟无黑屏/花屏，单写者不破坏。
+
 ## T-1.1.11-R1 Rref_eff Alignment + Live Window Gate
 - [ ] `R11-RREF-01`: `RREF_NOM/RREF_EFF` 与实测本体值一致（200/2K/20K/200K -> 1k/10k/100k/1M）。
 - [ ] `R11-CALC-01`: `2K/20K/200K` 三档下 `R_CALC` 不再稳定偏 10x。

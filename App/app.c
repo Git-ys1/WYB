@@ -10,6 +10,7 @@
 #include "../Drivers/drv_beep.h"
 #include "../Drivers/drv_opamp_internal.h"
 #include "../Measurements/measure_res.h"
+#include "../Measurements/measure_res_auto.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
 #include "app_bootdiag.h"
@@ -32,7 +33,7 @@ typedef enum {
 typedef struct app_ctx_s app_ctx_t;
 typedef const char *(*mode_range_name_fn_t)(const app_ctx_t *ctx);
 typedef void (*mode_range_next_fn_t)(app_ctx_t *ctx);
-typedef void (*mode_measure_fn_t)(app_ctx_t *ctx);
+typedef void (*mode_measure_fn_t)(app_ctx_t *ctx, uint32_t now_ms);
 
 typedef struct {
     const char *title;
@@ -73,6 +74,8 @@ struct app_ctx_s {
     app_err_t res_calc_err;
     float res_r_calc_ohm;
     res_display_text_t res_disp;
+    res_auto_result_t res_auto;
+    bool res_auto_active;
 
     uint32_t next_meas_ms;
     uint32_t next_ui_ms;
@@ -179,11 +182,44 @@ static void ui_update_debug_adc_sample(void)
     }
 }
 
-static void measure_tick_res(app_ctx_t *ctx)
+static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
 {
     app_err_t err;
     bool have_binding;
     bool display_calc_ok;
+
+    if (ctx->res_range_sel == RES_RANGE_SEL_AUTO) {
+        if (!ctx->res_auto_active) {
+            measure_res_auto_enter();
+            ctx->res_auto_active = true;
+        }
+
+        err = measure_res_auto_step(now_ms, &ctx->res_auto);
+        if (err != ERR_OK) {
+            ctx->res_window = RES_AFE_WIN_INVALID;
+            ctx->res_afe_ok = false;
+            ctx->res_calc_ok = false;
+            ctx->res_calc_err = err;
+            ctx->res_r_calc_ohm = 0.0f;
+            res_format_display(&ctx->res_binding, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
+            ctx->ui_dirty = true;
+            return;
+        }
+
+        ctx->res_binding = ctx->res_auto.binding;
+        ctx->res_sample = ctx->res_auto.sample;
+        ctx->res_health = ctx->res_auto.health_hist;
+        ctx->res_window = ctx->res_auto.window;
+        ctx->res_afe_ok = ctx->res_auto.afe_ok;
+        ctx->res_calc_ok = ctx->res_auto.calc_ok;
+        ctx->res_calc_err = ctx->res_auto.calc_err;
+        ctx->res_r_calc_ohm = ctx->res_auto.r_calc_ohm;
+        ctx->res_disp = ctx->res_auto.disp;
+        ctx->ui_dirty = true;
+        return;
+    }
+
+    ctx->res_auto_active = false;
 
     have_binding = measure_res_get_binding(ctx->res_range_sel, &ctx->res_binding);
     if (!have_binding) {
@@ -243,9 +279,10 @@ static void measure_tick_res(app_ctx_t *ctx)
     ctx->ui_dirty = true;
 }
 
-static void measure_tick_noop(app_ctx_t *ctx)
+static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
 {
     (void)ctx;
+    (void)now_ms;
 }
 
 static const mode_desc_t k_mode_desc[MODE_COUNT] = {
@@ -357,7 +394,14 @@ static void build_main_frame(app_ui_frame_t *frame)
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", md->title);
-    if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
+    if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
+        const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
+        if (measure_res_range_is_exp(g_app.res_auto.locked_range_sel)) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: AUTO %s EXP", locked);
+        } else {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: AUTO %s", locked);
+        }
+    } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s EXP", range);
     } else {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s", range);
@@ -393,7 +437,11 @@ static void build_debug_frame(app_ui_frame_t *frame)
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s OP1", md->title);
-    if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
+    if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
+        const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "AUTO:%s MUX:%u",
+                       locked, (unsigned)g_app.res_binding.mux_idx);
+    } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
     } else {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
@@ -409,10 +457,20 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RN:%lu RE:%lu",
                        (unsigned long)g_app.res_binding.param.rref_nom_ohm,
                        (unsigned long)g_app.res_binding.param.rref_eff_ohm);
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "%s", rc_line);
-        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "RD:%.7s ST:%.5s",
-                       g_app.res_disp.r_disp_str,
-                       g_app.res_disp.stat_str);
+        if (g_app.res_range_sel == RES_RANGE_SEL_AUTO) {
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "A:%s U%uD%u",
+                           measure_res_range_name(g_app.res_auto.locked_range_sel),
+                           (unsigned)g_app.res_auto.vote_up,
+                           (unsigned)g_app.res_auto.vote_down);
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "RC:%.6s RD:%.6s",
+                           rc_line + 6,
+                           g_app.res_disp.r_disp_str);
+        } else {
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "%s", rc_line);
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "RD:%.7s ST:%.5s",
+                           g_app.res_disp.r_disp_str,
+                           g_app.res_disp.stat_str);
+        }
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -465,6 +523,8 @@ void app_init(void)
     for (i = 0u; i < RES_RANGE_SEL_COUNT; i++) {
         res_afe_diag_reset(i);
     }
+    measure_res_auto_reset();
+    g_app.res_auto_active = false;
     (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
     res_format_display(&g_app.res_binding, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
 
@@ -543,7 +603,7 @@ void app_measure_tick(void)
     }
     g_app.next_meas_ms = now + MEAS_PERIOD_MS;
 
-    active_mode_desc()->measure_fn(&g_app);
+    active_mode_desc()->measure_fn(&g_app, now);
 }
 
 void app_ui_tick(void)

@@ -127,6 +127,19 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `MID`：允许显示 `R_CALC -> R_DISP`；
   - 采样错误：`STAT: ERR`。
 
+## T-1.1.12-R1 范围声明
+- RES 新增 `AUTO` 挡状态机（锁定+迟滞+settle），不做全量程轮询扫描。
+- 进入 AUTO 时优先继承上次锁定子量程；无历史时默认从 `20K` 起步。
+- 自动切档采用投票与迟滞边界（连续 3 次后切换），切换后固定 `120ms` 稳定等待。
+- AUTO 正式页显示：
+  - 第1行 `RES`
+  - 第2行 `AUTO <locked_subrange>`（例如 `AUTO 20K`，200档仍标 `EXP`）
+  - 第3行主值（正常值/`OL`/`----`）
+  - 第4行状态（`OK/AUTO/OPEN/SHORT/ERR`）
+- AUTO 边界策略：
+  - 最高档仍 OPEN：锁定 `200K`，显示 `OL`
+  - 最低档仍 SHORT：锁定 `200`，显示 `SHORT`
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
