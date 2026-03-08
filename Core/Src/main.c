@@ -26,8 +26,6 @@
 
 #include "../../App/app.h"
 #include "../../BSP/bsp.h"
-#include "../../BSP/bsp_oled_smoke.h"
-#include "../../Drivers/drv_adc_internal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,23 +34,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-/* Main branch default:
- * - APP_MENU_REINTEGRATION_EXPERIMENT=0: stable OLED/ADC smoke baseline
- * - APP_MENU_REINTEGRATION_EXPERIMENT=1: allow app/menu experiment path
- */
-#define APP_MENU_REINTEGRATION_EXPERIMENT 0
+#define APP_EMERGENCY_LED_SMOKE_TEST 0
 
-/* APP_SMOKE_OLED_TEST=1 -> OLED-only smoke, APP_SMOKE_LED_TEST=1 -> LED-only smoke, both 0 -> normal app */
-#if APP_MENU_REINTEGRATION_EXPERIMENT
-#define APP_SMOKE_OLED_TEST 0
-#else
-#define APP_SMOKE_OLED_TEST 1
-#endif
-#define APP_SMOKE_LED_TEST 0
-
-#define OLED_SMOKE_FORCE_PROFILE OLED_PROFILE_SSD1315_PAGE
-#define OLED_REFRESH_MS 500u
-#define ADC_FALLBACK_VDDA_MV 3300u
 #if defined(__GNUC__)
 #define APP_MAYBE_UNUSED __attribute__((unused))
 #else
@@ -71,13 +54,6 @@ TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-static volatile oled_smoke_diag_t g_smoke_last_diag;
-static volatile uint8_t g_oled_addr7_dbg;
-static volatile uint16_t g_oled_addr_hal_dbg;
-static volatile uint16_t g_adc_raw_dbg;
-static volatile uint32_t g_adc_mv_dbg;
-static volatile uint32_t g_adc_vdda_dbg;
-static volatile app_err_t g_adc_stat_dbg;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,31 +67,10 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN PFP */
 static void SmokeLed_Init(void);
 static void SmokeLed_Run(void);
-static void SmokeLed_BlinkError(uint8_t code);
-static void SmokeDiagCapture(void);
-static void SmokeOled_DrawInitPage(void);
-static void SmokeOled_DrawAdcPage(uint16_t raw, bool raw_valid, uint32_t mv, bool mv_valid,
-                                  uint32_t vdda_mv, bool vdda_valid, app_err_t stat);
-static void SmokeOled_Run(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static void SmokeLed_BlinkError(uint8_t code)
-{
-  uint8_t i;
-
-  for (;;) {
-    for (i = 0u; i < code; i++) {
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-      HAL_Delay(100);
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-      HAL_Delay(100);
-    }
-    HAL_Delay(600);
-  }
-}
-
 static APP_MAYBE_UNUSED void SmokeLed_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -140,143 +95,6 @@ static APP_MAYBE_UNUSED void SmokeLed_Run(void)
   {
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
     HAL_Delay(100);
-  }
-}
-
-static void SmokeDiagCapture(void)
-{
-  oled_smoke_diag_t tmp;
-  oled_smoke_diag_get(&tmp);
-  g_smoke_last_diag = tmp;
-}
-
-static void SmokeOled_DrawInitPage(void)
-{
-  oled_smoke_fb_clear(0x00u);
-  oled_smoke_draw_text_line(0u, "OLED TXT OK");
-  oled_smoke_draw_text_line(1u, "ADC INIT...");
-  oled_smoke_draw_text_line(2u, "RAW: ----");
-  oled_smoke_draw_text_line(3u, "MV : ----");
-}
-
-static void SmokeOled_DrawAdcPage(uint16_t raw, bool raw_valid, uint32_t mv, bool mv_valid,
-                                  uint32_t vdda_mv, bool vdda_valid, app_err_t stat)
-{
-  char line[24];
-
-  oled_smoke_fb_clear(0x00u);
-  oled_smoke_draw_text_line(0u, "OLED TXT OK");
-
-  if (raw_valid) {
-    (void)snprintf(line, sizeof(line), "RAW: %5u", raw);
-  } else {
-    (void)snprintf(line, sizeof(line), "RAW: ----");
-  }
-  oled_smoke_draw_text_line(1u, line);
-
-  if (mv_valid) {
-    (void)snprintf(line, sizeof(line), "MV : %lu.%03lu",
-                   (unsigned long)(mv / 1000u), (unsigned long)(mv % 1000u));
-  } else {
-    (void)snprintf(line, sizeof(line), "MV : ----");
-  }
-  oled_smoke_draw_text_line(2u, line);
-
-  if (vdda_valid) {
-    (void)snprintf(line, sizeof(line), "VDDA:%4lu", (unsigned long)vdda_mv);
-  } else {
-    (void)snprintf(line, sizeof(line), "VDDA:----");
-  }
-  oled_smoke_draw_text_line(3u, line);
-
-  if (stat == ERR_OK) {
-    (void)snprintf(line, sizeof(line), "STAT: OK");
-  } else {
-    (void)snprintf(line, sizeof(line), "STAT: ERR%d", (int)stat);
-  }
-  oled_smoke_draw_text_line(4u, line);
-}
-
-static APP_MAYBE_UNUSED void SmokeOled_Run(void)
-{
-  app_err_t adc_init_err;
-  app_err_t adc_err;
-  uint16_t raw = 0u;
-  uint32_t mv = 0u;
-  uint32_t vdda_mv = ADC_FALLBACK_VDDA_MV;
-  bool raw_valid;
-  bool mv_valid;
-  bool vdda_valid;
-
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-  HAL_Delay(250);
-  g_oled_addr7_dbg = OLED_ADDR_7BIT;
-  g_oled_addr_hal_dbg = OLED_ADDR_HAL;
-
-  if (!oled_smoke_init((oled_smoke_profile_t)OLED_SMOKE_FORCE_PROFILE, OLED_ADDR_7BIT)) {
-    SmokeDiagCapture();
-    if (g_smoke_last_diag.stage == OLED_SMOKE_FAIL_INIT) {
-      SmokeLed_BlinkError(2u);
-    }
-    SmokeLed_BlinkError(1u);
-  }
-
-  g_oled_addr7_dbg = oled_smoke_get_addr7();
-  g_oled_addr_hal_dbg = oled_smoke_get_addr_hal();
-
-  SmokeOled_DrawInitPage();
-  if (!oled_smoke_flush_full()) {
-    SmokeDiagCapture();
-    SmokeLed_BlinkError(3u);
-  }
-  HAL_Delay(OLED_REFRESH_MS);
-
-  adc_init_err = adc1_init();
-  g_adc_stat_dbg = adc_init_err;
-
-  for (;;) {
-    raw_valid = false;
-    mv_valid = false;
-    vdda_valid = false;
-    raw = 0u;
-    mv = 0u;
-    vdda_mv = ADC_FALLBACK_VDDA_MV;
-
-    if (adc_init_err == ERR_OK) {
-      adc_err = adc1_read_raw_u16(&raw);
-      if (adc_err == ERR_OK) {
-        raw_valid = true;
-      }
-
-      if (adc_err == ERR_OK) {
-        adc_err = adc1_read_mv(&mv);
-        if (adc_err == ERR_OK) {
-          mv_valid = true;
-        }
-      }
-
-      if (adc_err == ERR_OK) {
-        adc_err = adc1_read_vdda_mv(&vdda_mv);
-        if (adc_err == ERR_OK) {
-          vdda_valid = true;
-        }
-      }
-    } else {
-      adc_err = adc_init_err;
-    }
-
-    g_adc_raw_dbg = raw;
-    g_adc_mv_dbg = mv;
-    g_adc_vdda_dbg = vdda_mv;
-    g_adc_stat_dbg = adc_err;
-
-    SmokeOled_DrawAdcPage(raw, raw_valid, mv, mv_valid, vdda_mv, vdda_valid, adc_err);
-    if (!oled_smoke_flush_full()) {
-      SmokeDiagCapture();
-      SmokeLed_BlinkError(3u);
-    }
-
-    HAL_Delay(OLED_REFRESH_MS);
   }
 }
 /* USER CODE END 0 */
@@ -306,17 +124,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-#if APP_SMOKE_OLED_TEST
-  (void)SmokeLed_Run;
-  (void)MX_I2C3_Init;
-  (void)MX_TIM2_Init;
-  (void)MX_TIM16_Init;
-  (void)bsp_init;
-  (void)app_init;
-  MX_I2C2_Init();
-  SmokeLed_Init();
-  SmokeOled_Run();
-#elif APP_SMOKE_LED_TEST
+#if APP_EMERGENCY_LED_SMOKE_TEST
   (void)MX_I2C2_Init;
   (void)MX_I2C3_Init;
   (void)MX_TIM2_Init;
@@ -342,7 +150,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-#if !APP_SMOKE_OLED_TEST && !APP_SMOKE_LED_TEST
+#if !APP_EMERGENCY_LED_SMOKE_TEST
     app_poll_button();
     app_measure_tick();
     app_ui_tick();

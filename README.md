@@ -17,27 +17,21 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 如果 GUI 正在占用同一个 workspace，会出现 `Workspace already in use` 锁冲突。
 - 解决方式是使用独立 headless workspace（如 `WorkSpace3_headless`）。
 
-## 关键约束（T-1.1.4I）
+## 关键约束（当前）
 - 禁止使用 ADS1110 外部 ADC。
 - 采样链路已切换为片内 ADC：`ADC1 + PC0 (ADC12_IN6)`。
 - 电阻测量链路：`MUX -> ADC1(PC0) -> Vred -> Rx`。
 - `I2C3` 初始化暂时保留但不参与测量，后续可在 `.ioc` 清理。
-- OLED 黑屏恢复链路：`I2C2总线解锁 -> I2C2重初始化(100k) -> 重新探测/盲初始化`（唯一状态机入口）。
-- 启动诊断 `bootdiag` 已接入：可读 `BOOT stage / err / ms`，用于黑屏卡点定位（Probe/Init/Flush/Recover）。
-- TIM2 输入捕获改为延后启动：仅在 `BOOT_STAGE_40_OLED_FLUSH_OK` 后启动，避免启动期抢占。
-- OLED 总线采用双路径：`HW I2C2` 优先，失败后由 `app.c` 状态机显式切换 `Soft-I2C(PC4/PA8)`。
-- `APP_OLED_RESCUE_MODE=1` 默认开启：启动前 2 秒只显示 BOOT 固定页，优先保证“可见”。
-- 本轮暂停推进 T-1.1.5（ADC/OPAMP/COMP 新功能），优先“救屏与可定位”。
+- OLED 统一显示后端固定为 `oled_smoke_*` 封装（`App/app_display_service.*`）。
+- 主流程默认不再依赖 smoke 编译分流，统一走 `bsp_init + app_init + superloop`。
+- 本阶段不恢复 Soft-I2C / recover 状态机 / dirty flush / 多页面并发刷新。
 
 ## 启动阶段码（bootdiag）
 - `10`：GPIO/基础启动完成
-- `20`：I2C2 探测成功
-- `30`：OLED init 成功
-- `40`：BOOT 文本 flush 成功
-- `101`：I2C2 探测失败
+- `40`：显示初始化完成（可见页已输出）
 - `102`：OLED init 失败
 - `103`：OLED flush 失败
-- `104`：恢复阶段失败（进入重试调度）
+- `104`：保留（历史阶段码）
 
 ## 当前实现范围
 - OLED 调试 UI（I2C2：`PC4/PA8`），支持状态/日志可视化。
@@ -52,23 +46,23 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `adc1_read_filtered`（16 点 trimmed mean）
   - `adc1_read_vdda_mv`（VREFINT 估算 VDDA，失败回退 3300mV）
 
-## T-1.5.1A 当前验证模式（冻结）
-- 先走已通过的 OLED smoke 底层参数：`SSD1315 + HW I2C2 + 100k + page mode + 16B chunk flush`。
-- 不恢复旧的 Soft-I2C / recover 状态机 / dirty flush / 多菜单并发刷新。
-- `APP_SMOKE_OLED_TEST=1` 时，OLED 路径固定显示：
-  - `OLED TXT OK`
-  - `RAW / MV / VDDA / STAT`（ADC1/PC0 bring-up 调试页）
-- 即使 ADC 异常，OLED 继续刷新并显示 `STAT: ERRn`，不进入错误死循环。
+## T-1.5.1A 历史 Smoke 基线（保留说明）
+- 已验证的 OLED 底层参数：`SSD1315 + HW I2C2 + 100k + page mode + 16B chunk flush`。
+- 该 smoke 路径已作为底层后端能力保留，不再作为主流程默认入口。
 
-## T-1.1.5E-R1 主分支稳定策略（冻结）
-- 主分支默认固定为可见 smoke 基线，避免再次黑屏锁死：
-  - `APP_MENU_REINTEGRATION_EXPERIMENT=0`
-  - `APP_SMOKE_OLED_TEST=1`
-- 仅当 `APP_MENU_REINTEGRATION_EXPERIMENT=1` 时，才允许走菜单回接实验路径。
-- 实验路径中的 presenter 已改为“失败不永久锁死”语义：
-  - flush 连续失败时显示固定 fallback 页
-  - fallback 文本：`OLED FALLBACK / ERR: EX3 / USE SMOKE BASE / CHECK EXP SWITCH`
-- 菜单重构工作从主分支剥离到实验分支：`exp/menu-shell-r2b`。
+## T-1.1.5F-R1 统一显示架构（当前主线）
+- `oled_smoke_*` 已提升为正式显示后端，由 `App/app_display_service.*` 统一封装。
+- 主流程显示不再依赖 `APP_SMOKE_OLED_TEST` 编译分流，默认直接进入：
+  - `HAL_Init -> SystemClock_Config -> MX_* -> bsp_init -> app_init -> superloop`
+- 单写者规则：
+  - 正式路径仅允许 `app_display_service` 调用底层 flush
+  - `app.c` 只组织菜单/调试文本，不直接操作 OLED 底层
+- 当前菜单恢复范围：`L1_MODULE / L2_DEBUG_PAGE / L2_MEAS_FUNC / L3_RES_RANGE / L4_RES_READY`
+- 本轮仍保持测量懒启动：非 `RES_RUN` 页面不启动真实测量。
+
+## T-1.1.5E-R1 历史说明
+- `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
+- 当前实验分支：`exp/ui-unify-r1`。
 
 ## 冻结引脚映射
 - OLED I2C2：`PC4(SCL), PA8(SDA)`

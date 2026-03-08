@@ -1,5 +1,13 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.5F-R1 Unified Display + Menu Shell
+- [ ] `F1-BOOT`: 关闭 smoke 主流程分流后，上电直接显示 `MAIN MENU`。
+- [ ] `F1-DEBUG`: `DEBUG/ADC` 页稳定显示 `RAW/MV/VDDA/STAT`。
+- [ ] `F1-MENU`: `L1/L2/L3/L4(RES READY)` 可进入、返回、切换。
+- [ ] `F1-STABLE-5MIN`: 连续 5 分钟无黑屏/花屏。
+- [ ] `F1-SINGLE-WRITER`: 正式路径只有一个底层 flush 调用点（`app_display_service`）。
+- [ ] `F1-MEAS-GATE`: 非 `MENU_L4_RES_RUN` 时 `app_measure_tick()` 不执行真实测量。
+
 ## T-1.1.5E-R1 Main Recovery + Experiment Isolation
 - [ ] `E1-REVERT`: `main` 已执行 `revert c9ca804`，固定 smoke 页恢复。
 - [ ] `E1-BUILD`: Clean + Build 通过，产出 `Debug/WYB.hex`。
