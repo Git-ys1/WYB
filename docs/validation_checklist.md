@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.8-R1 Competition-Key UI + RES AFE Gate
+- [ ] `R8-KEY-01`: `RIGHT` 短按切档位，`RIGHT` 长按切功能。
+- [ ] `R8-KEY-02`: `LEFT` 短按可进入/退出 Debug 页。
+- [ ] `R8-RES-01`: AFE 未通过时固定显示 `R: ----` 与 `STAT: AFE BAD`。
+- [ ] `R8-RES-02`: AFE 通过后才显示电阻值（非伪结果）。
+- [ ] `R8-RES-03`: 200 档显示 `200 EXP`。
+- [ ] `R8-AFE-01`: 2K/20K/200K 三档完成 `SHORT_SEEN/OPEN_SEEN` 端点记录。
+- [ ] `R8-STABLE-01`: 连续 5 分钟无黑屏/花屏。
+- [ ] `R8-WRITER-01`: 无第二个 flush 调用点。
+
 ## T-1.1.7-R1 4-Key + RES Manual Live
 - [ ] `R7-KEY-01`: 代码中不再产生 `KEY_UP/KEY_DOWN` 事件。
 - [ ] `R7-KEY-02`: 仅用 `LEFT/RIGHT/OK/BACK` 可完整浏览菜单树。

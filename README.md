@@ -51,18 +51,14 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 ## 当前实现范围
 - 统一显示链路：`app -> presenter -> app_display_service -> oled_smoke`（单写者）。
-- 4 键菜单输入（运行时代码初始化，不依赖 `.ioc` 按键配置）。
-- 菜单树（浏览态）：
-  - `UI_DIAG`
-  - `UI_MAIN_MENU`
-  - `UI_DEBUG_MENU`
-  - `UI_DEBUG_ADC`
-  - `UI_BOOT_INFO`
-  - `UI_MEASURE_MENU`
-  - `UI_RES_RANGE`
-  - `UI_RES_READY / UI_RES_RUN`
-  - `UI_VDC_READY / UI_FREQ_READY / UI_CONT_READY / UI_DIODE_READY`
-- `RES_RUN` 已启用手动电阻 live 页面（优先 2K/20K/200K，200 为实验档）。
+- 比赛态输入：`RIGHT` 短按切档、`RIGHT` 长按切功能；开发后门：`LEFT` 短按进/退 Debug。
+- 本阶段正式 UI 不再依赖多级菜单树，收敛为：
+  - `RUN_MAIN`（比赛页）
+  - `RUN_DEBUG`（诊断页）
+- `RES` 页面先做 AFE 端点健康检查，再决定是否显示电阻值：
+  - `AFE_OK=0`：`R: ----`, `STAT: AFE BAD`
+  - `AFE_OK=1`：按 3.5 位格式显示电阻
+- 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
 - `VDC/FREQ/CONT/DIODE` 仍为 READY 占位。
 - 片内 ADC 驱动：
   - `adc1_init`
@@ -90,6 +86,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 输入从 6 键收缩为 4 键：`LEFT/RIGHT/OK/BACK`。
 - 启用 `UI_RES_RUN`（手动电阻 live），非运行页测量继续门控。
 
+## T-1.1.8-R1 范围声明
+- 正式交互改为“比赛态单键逻辑 + 开发后门”：
+  - `RIGHT short`: 档位切换
+  - `RIGHT long`: 功能切换
+  - `LEFT short`: Debug页切换
+- `RES` 计算链路拆分为：
+  - `res_acquire_sample`
+  - `res_check_afe_health`
+  - `res_estimate_rx`
+  - `res_format_display`
+- 本轮不启用片内 OPAMP 实测，但软件层已为 OPAMP 迁移收口。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
@@ -111,6 +119,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `LEFT=PB2`
   - `RIGHT=PB10`
   - `BACK=PB11`
+- 正式运行逻辑仅消费 `LEFT/RIGHT`；`OK/BACK` 保留为 dev-only。
 
 ## 主循环（保持不变）
 ```c
@@ -139,6 +148,7 @@ while (1) {
 - ADC 输入点必须限制在 `0~3.3V`。
 - 高源阻抗档位需使用长采样时间（当前已按长采样配置）。
 - OLED 黑屏时优先看 `bootdiag_get_stage()/bootdiag_get_fault()`（STLink Live Watch）。
+- 下一硬件动作已冻结：外部 TL072 退出正式路线，迁移到 `STM32G474 OPAMP VINP -> OPAMP follower -> ADC`。
 
 ## Git 工作纪律（强制执行）
 - GitHub 账号：`Git-ys1`

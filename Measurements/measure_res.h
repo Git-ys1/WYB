@@ -7,7 +7,17 @@
 #include "../Drivers/drv_error.h"
 
 typedef enum {
+    RES_RANGE_SEL_AUTO = 0,
+    RES_RANGE_SEL_200,
+    RES_RANGE_SEL_2K,
+    RES_RANGE_SEL_20K,
+    RES_RANGE_SEL_200K,
+    RES_RANGE_SEL_COUNT
+} res_range_sel_t;
+
+typedef enum {
     RES_STAT_OK = 0,
+    RES_STAT_AFE_BAD,
     RES_STAT_OPEN,
     RES_STAT_SHORT,
     RES_STAT_OVR,
@@ -19,12 +29,11 @@ typedef struct {
     uint16_t raw_u16;
     uint32_t mv;
     uint32_t vdda_mv;
-    float r_ohm;
-    res_live_stat_t stat;
     app_err_t err;
-} res_live_sample_t;
+} res_sample_t;
 
-app_err_t measure_res_manual_sample(uint8_t range_sel, res_live_sample_t *out);
+app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s);
+app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm);
 const char *measure_res_range_name(uint8_t range_sel);
 bool measure_res_range_is_exp(uint8_t range_sel);
 const char *measure_res_stat_name(res_live_stat_t stat);
