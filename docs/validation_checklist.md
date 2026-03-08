@@ -1,5 +1,17 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.9-R1 Competition-Key + OPAMP1 RES Chain
+- [ ] `R9-TITLE-01`: `RES` 与 `VDC` 第一行标题正确，无反置。
+- [ ] `R9-KEY-01`: `RIGHT` 短按在 `UP` 触发切档，长按触发切功能，体验无迟钝/断触。
+- [ ] `R9-KEY-02`: `LEFT` 短按（UP确认）稳定进/退 Debug。
+- [ ] `R9-CHAIN-01`: RES 采样链为 `PA1 -> OPAMP1 -> ADC(VOPAMP1)`，不再依赖 `TL072->PC0`。
+- [ ] `R9-DEBUG-01`: Debug 页显示 `RAW/MV/VDDA/STAT`，并标注 `AFE:OP1`。
+- [ ] `R9-AFE-01`: 端点门控生效：未通过时固定 `R: ---- / STAT: AFE BAD`。
+- [ ] `R9-AFE-02`: `2K/20K/200K` 三档完成 SHORT/OPEN/100Ω/1kΩ/10kΩ/100kΩ 记录。
+- [ ] `R9-RANGE-01`: `200` 档明确为 `EXP`，不作为主验收档。
+- [ ] `R9-STABLE-01`: 连续 5 分钟无黑屏/花屏。
+- [ ] `R9-WRITER-01`: 无第二个 flush 调用点。
+
 ## T-1.1.8-R1 Competition-Key UI + RES AFE Gate
 - [ ] `R8-KEY-01`: `RIGHT` 短按切档位，`RIGHT` 长按切功能。
 - [ ] `R8-KEY-02`: `LEFT` 短按可进入/退出 Debug 页。

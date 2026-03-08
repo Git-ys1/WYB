@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include "../Core/Inc/main.h"
+#include "drv_opamp_internal.h"
 
 #define ADC_FILTER_SAMPLES 16u
 #define ADC_POLL_TIMEOUT_MS 10u
@@ -41,7 +42,7 @@ static app_err_t adc1_set_channel(uint32_t channel)
     return ERR_OK;
 }
 
-static app_err_t adc1_single_read(uint16_t *raw)
+static app_err_t adc1_single_read_once(uint16_t *raw)
 {
     uint32_t val;
 
@@ -74,6 +75,18 @@ static app_err_t adc1_single_read(uint16_t *raw)
     *raw = (uint16_t)(val & 0xFFFFu);
     g_last_status = ERR_OK;
     return ERR_OK;
+}
+
+static app_err_t adc1_single_read_dummy2(uint16_t *raw)
+{
+    app_err_t err;
+    uint16_t dummy;
+
+    err = adc1_single_read_once(&dummy);
+    if (err != ERR_OK) {
+        return err;
+    }
+    return adc1_single_read_once(raw);
 }
 
 app_err_t adc1_init(void)
@@ -144,7 +157,26 @@ app_err_t adc1_read_raw_u16(uint16_t *raw)
         return err;
     }
 
-    return adc1_single_read(raw);
+    return adc1_single_read_once(raw);
+}
+
+app_err_t adc1_read_opamp1_raw_u16(uint16_t *raw)
+{
+    app_err_t err;
+
+    if (raw == 0) {
+        return ERR_INVALID_ARG;
+    }
+    if (!opamp1_ready()) {
+        return ERR_HW_FAIL;
+    }
+
+    err = adc1_set_channel(ADC_CHANNEL_VOPAMP1);
+    if (err != ERR_OK) {
+        return err;
+    }
+
+    return adc1_single_read_dummy2(raw);
 }
 
 app_err_t adc1_read_vdda_mv(uint32_t *vdda_mv)
@@ -162,7 +194,7 @@ app_err_t adc1_read_vdda_mv(uint32_t *vdda_mv)
         return err;
     }
 
-    err = adc1_single_read(&raw);
+    err = adc1_single_read_dummy2(&raw);
     if (err != ERR_OK) {
         return err;
     }
@@ -205,6 +237,34 @@ app_err_t adc1_read_mv(uint32_t *mv)
     return ERR_OK;
 }
 
+app_err_t adc1_read_opamp1_mv(uint32_t *mv)
+{
+    app_err_t err;
+    app_err_t vdda_err;
+    uint16_t raw;
+    uint32_t vdda_mv = ADC_FALLBACK_VDDA_MV;
+    app_err_t status_before_vdda;
+
+    if (mv == 0) {
+        return ERR_INVALID_ARG;
+    }
+
+    err = adc1_read_opamp1_raw_u16(&raw);
+    if (err != ERR_OK) {
+        return err;
+    }
+
+    status_before_vdda = g_last_status;
+    vdda_err = adc1_read_vdda_mv(&vdda_mv);
+    if (vdda_err != ERR_OK) {
+        vdda_mv = ADC_FALLBACK_VDDA_MV;
+        g_last_status = status_before_vdda;
+    }
+
+    *mv = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vdda_mv, (uint32_t)raw, ADC_RESOLUTION_12B);
+    return ERR_OK;
+}
+
 app_err_t adc1_read_filtered(uint16_t *raw, uint32_t *mv)
 {
     uint16_t samples[ADC_FILTER_SAMPLES];
@@ -224,6 +284,52 @@ app_err_t adc1_read_filtered(uint16_t *raw, uint32_t *mv)
 
     for (i = 0u; i < ADC_FILTER_SAMPLES; i++) {
         err = adc1_read_raw_u16(&samples[i]);
+        if (err != ERR_OK) {
+            return err;
+        }
+
+        if (samples[i] < min_v) {
+            min_v = samples[i];
+        }
+        if (samples[i] > max_v) {
+            max_v = samples[i];
+        }
+        sum += samples[i];
+    }
+
+    mean_raw = (sum - (uint32_t)min_v - (uint32_t)max_v) / (ADC_FILTER_SAMPLES - 2u);
+    *raw = (uint16_t)mean_raw;
+
+    status_before_vdda = g_last_status;
+    vdda_err = adc1_read_vdda_mv(&vdda_mv);
+    if (vdda_err != ERR_OK) {
+        vdda_mv = ADC_FALLBACK_VDDA_MV;
+        g_last_status = status_before_vdda;
+    }
+
+    *mv = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vdda_mv, mean_raw, ADC_RESOLUTION_12B);
+    return ERR_OK;
+}
+
+app_err_t adc1_read_opamp1_filtered(uint16_t *raw, uint32_t *mv)
+{
+    uint16_t samples[ADC_FILTER_SAMPLES];
+    uint32_t i;
+    uint32_t sum = 0u;
+    uint16_t min_v = 0xFFFFu;
+    uint16_t max_v = 0u;
+    uint32_t mean_raw;
+    uint32_t vdda_mv = ADC_FALLBACK_VDDA_MV;
+    app_err_t err;
+    app_err_t vdda_err;
+    app_err_t status_before_vdda;
+
+    if ((raw == 0) || (mv == 0)) {
+        return ERR_INVALID_ARG;
+    }
+
+    for (i = 0u; i < ADC_FILTER_SAMPLES; i++) {
+        err = adc1_read_opamp1_raw_u16(&samples[i]);
         if (err != ERR_OK) {
             return err;
         }

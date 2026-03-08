@@ -2,19 +2,9 @@
 
 #include <string.h>
 
-typedef struct {
-    uint16_t short_th_mv;
-    uint16_t open_margin_mv;
-} afe_threshold_t;
-
-/* Conservative thresholds for pre-OPAMP diagnosis. */
-static const afe_threshold_t k_th[RES_RANGE_SEL_COUNT] = {
-    [RES_RANGE_SEL_AUTO] = {0u, 0u},
-    [RES_RANGE_SEL_200] = {30u, 120u},
-    [RES_RANGE_SEL_2K] = {20u, 100u},
-    [RES_RANGE_SEL_20K] = {15u, 90u},
-    [RES_RANGE_SEL_200K] = {12u, 80u}
-};
+#define AFE_SHORT_TH_MV 50u
+#define AFE_OPEN_RATIO_NUM 90u
+#define AFE_OPEN_RATIO_DEN 100u
 
 static res_afe_health_t g_health[RES_RANGE_SEL_COUNT];
 
@@ -33,8 +23,8 @@ void res_afe_diag_reset_all(void)
 
 void res_afe_diag_update(uint8_t range_sel, const res_sample_t *s)
 {
-    const afe_threshold_t *th;
     res_afe_health_t *h;
+    uint32_t open_th_mv;
 
     if ((range_sel >= RES_RANGE_SEL_COUNT) || (s == NULL) || !s->valid) {
         return;
@@ -43,16 +33,14 @@ void res_afe_diag_update(uint8_t range_sel, const res_sample_t *s)
         return;
     }
 
-    th = &k_th[range_sel];
     h = &g_health[range_sel];
 
-    if (s->mv <= th->short_th_mv) {
+    if (s->mv < AFE_SHORT_TH_MV) {
         h->short_seen = true;
     }
-    if (s->vdda_mv > th->open_margin_mv) {
-        if (s->mv >= (s->vdda_mv - th->open_margin_mv)) {
-            h->open_seen = true;
-        }
+    open_th_mv = (s->vdda_mv * AFE_OPEN_RATIO_NUM) / AFE_OPEN_RATIO_DEN;
+    if (s->mv > open_th_mv) {
+        h->open_seen = true;
     }
     h->afe_ok = h->short_seen && h->open_seen;
 }

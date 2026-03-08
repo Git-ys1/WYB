@@ -24,6 +24,7 @@ typedef struct {
     key_id_t key;
     key_evt_type_t type;
     uint32_t ms;
+    uint32_t duration_ms;
 } key_event_t;
 
 void bsp_keys_init(void);

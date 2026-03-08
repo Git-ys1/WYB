@@ -32,10 +32,18 @@ typedef struct {
     app_err_t err;
 } res_sample_t;
 
+typedef struct {
+    bool enabled;
+    bool exp_range;
+    float rref_nom_ohm;
+    float rref_eff_ohm;
+} res_range_param_t;
+
 app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s);
 app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm);
 const char *measure_res_range_name(uint8_t range_sel);
 bool measure_res_range_is_exp(uint8_t range_sel);
+const res_range_param_t *measure_res_get_range_param(uint8_t range_sel);
 const char *measure_res_stat_name(res_live_stat_t stat);
 
 #endif

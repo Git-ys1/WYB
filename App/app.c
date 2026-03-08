@@ -8,6 +8,7 @@
 #include "../BSP/bsp_keys.h"
 #include "../Drivers/drv_adc_internal.h"
 #include "../Drivers/drv_beep.h"
+#include "../Drivers/drv_opamp_internal.h"
 #include "../Measurements/measure_res.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
@@ -21,12 +22,26 @@
 #define MEAS_PERIOD_MS 40u
 #define BEEP_FREQ_HZ 2700u
 
+#define KEY_SHORT_MIN_MS 15u
+
 typedef enum {
     VIEW_RUN_MAIN = 0,
     VIEW_RUN_DEBUG
 } app_view_t;
 
+typedef struct app_ctx_s app_ctx_t;
+typedef const char *(*mode_range_name_fn_t)(const app_ctx_t *ctx);
+typedef void (*mode_range_next_fn_t)(app_ctx_t *ctx);
+typedef void (*mode_measure_fn_t)(app_ctx_t *ctx);
+
 typedef struct {
+    const char *title;
+    mode_range_name_fn_t range_name_fn;
+    mode_range_next_fn_t range_next_fn;
+    mode_measure_fn_t measure_fn;
+} mode_desc_t;
+
+struct app_ctx_s {
     app_mode_t mode;
     app_view_t view;
 
@@ -39,6 +54,7 @@ typedef struct {
 
     app_err_t presenter_err;
     app_err_t adc_init_err;
+    app_err_t opamp_init_err;
     app_err_t adc_last_err;
 
     bool dbg_raw_valid;
@@ -60,44 +76,58 @@ typedef struct {
     uint32_t next_ui_ms;
     uint32_t next_debug_adc_ms;
     bool ui_dirty;
-} app_ctx_t;
+};
 
 static app_ctx_t g_app;
-
-static const char *k_mode_name[MODE_COUNT] = {
-    "RES",
-    "VDC",
-    "FREQ",
-    "CONT",
-    "DIODE"
-};
 
 static const char *k_vdc_name[VDC_RANGE_COUNT] = {"2000mV", "20V"};
 static const char *k_freq_name[FREQ_RANGE_COUNT] = {"20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
 
-static const char *mode_name(app_mode_t mode)
+static const char *range_name_res(const app_ctx_t *ctx)
 {
-    if ((uint32_t)mode >= MODE_COUNT) {
-        return "UNK";
-    }
-    return k_mode_name[mode];
+    return measure_res_range_name(ctx->res_range_sel);
 }
 
-static const char *range_name_for_mode(void)
+static const char *range_name_vdc(const app_ctx_t *ctx)
 {
-    if (g_app.mode == MODE_RES) {
-        return measure_res_range_name(g_app.res_range_sel);
-    }
-    if (g_app.mode == MODE_VDC) {
-        return k_vdc_name[g_app.vdc_range_sel % VDC_RANGE_COUNT];
-    }
-    if (g_app.mode == MODE_FREQ) {
-        return k_freq_name[g_app.freq_range_sel % FREQ_RANGE_COUNT];
-    }
-    if (g_app.mode == MODE_CONT) {
-        return "BEEP";
-    }
-    return "Vf";
+    return k_vdc_name[ctx->vdc_range_sel % VDC_RANGE_COUNT];
+}
+
+static const char *range_name_freq(const app_ctx_t *ctx)
+{
+    return k_freq_name[ctx->freq_range_sel % FREQ_RANGE_COUNT];
+}
+
+static const char *range_name_cont(const app_ctx_t *ctx)
+{
+    (void)ctx;
+    return "BEEP";
+}
+
+static const char *range_name_diode(const app_ctx_t *ctx)
+{
+    (void)ctx;
+    return "VF";
+}
+
+static void range_next_res(app_ctx_t *ctx)
+{
+    ctx->res_range_sel = (uint8_t)((ctx->res_range_sel + 1u) % RES_RANGE_SEL_COUNT);
+}
+
+static void range_next_vdc(app_ctx_t *ctx)
+{
+    ctx->vdc_range_sel = (uint8_t)((ctx->vdc_range_sel + 1u) % VDC_RANGE_COUNT);
+}
+
+static void range_next_freq(app_ctx_t *ctx)
+{
+    ctx->freq_range_sel = (uint8_t)((ctx->freq_range_sel + 1u) % FREQ_RANGE_COUNT);
+}
+
+static void range_next_noop(app_ctx_t *ctx)
+{
+    (void)ctx;
 }
 
 static void ui_update_debug_adc_sample(void)
@@ -147,19 +177,107 @@ static void ui_update_debug_adc_sample(void)
     }
 }
 
-static void mode_next(void)
+static void measure_tick_res(app_ctx_t *ctx)
 {
-    g_app.mode = (app_mode_t)((g_app.mode + 1u) % MODE_COUNT);
+    app_err_t err;
+
+    err = res_acquire_sample(ctx->res_range_sel, &ctx->res_sample);
+    if (err != ERR_OK) {
+        ctx->res_afe_ok = false;
+        ctx->res_calc_ok = false;
+        ctx->res_calc_err = err;
+        res_format_display(ctx->res_range_sel, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
+        ctx->ui_dirty = true;
+        return;
+    }
+
+    res_afe_diag_update(ctx->res_range_sel, &ctx->res_sample);
+    ctx->res_health = res_afe_diag_get(ctx->res_range_sel);
+    ctx->res_afe_ok = res_check_afe_health(ctx->res_range_sel, &ctx->res_sample);
+
+    if (ctx->res_afe_ok) {
+        ctx->res_calc_err = res_estimate_rx(ctx->res_range_sel, &ctx->res_sample, &ctx->res_r_ohm);
+        ctx->res_calc_ok = (ctx->res_calc_err == ERR_OK);
+    } else {
+        ctx->res_calc_ok = false;
+        ctx->res_calc_err = ERR_HW_FAIL;
+        ctx->res_r_ohm = 0.0f;
+    }
+
+    res_format_display(ctx->res_range_sel,
+                       &ctx->res_sample,
+                       ctx->res_afe_ok,
+                       ctx->res_calc_ok,
+                       ctx->res_r_ohm,
+                       &ctx->res_disp);
+    ctx->ui_dirty = true;
 }
 
-static void range_next_in_mode(void)
+static void measure_tick_noop(app_ctx_t *ctx)
 {
-    if (g_app.mode == MODE_RES) {
-        g_app.res_range_sel = (uint8_t)((g_app.res_range_sel + 1u) % RES_RANGE_SEL_COUNT);
-    } else if (g_app.mode == MODE_VDC) {
-        g_app.vdc_range_sel = (uint8_t)((g_app.vdc_range_sel + 1u) % VDC_RANGE_COUNT);
-    } else if (g_app.mode == MODE_FREQ) {
-        g_app.freq_range_sel = (uint8_t)((g_app.freq_range_sel + 1u) % FREQ_RANGE_COUNT);
+    (void)ctx;
+}
+
+static const mode_desc_t k_mode_desc[MODE_COUNT] = {
+    [MODE_VDC] = {
+        .title = "VDC",
+        .range_name_fn = range_name_vdc,
+        .range_next_fn = range_next_vdc,
+        .measure_fn = measure_tick_noop
+    },
+    [MODE_RES] = {
+        .title = "RES",
+        .range_name_fn = range_name_res,
+        .range_next_fn = range_next_res,
+        .measure_fn = measure_tick_res
+    },
+    [MODE_FREQ] = {
+        .title = "FREQ",
+        .range_name_fn = range_name_freq,
+        .range_next_fn = range_next_freq,
+        .measure_fn = measure_tick_noop
+    },
+    [MODE_CONT] = {
+        .title = "CONT",
+        .range_name_fn = range_name_cont,
+        .range_next_fn = range_next_noop,
+        .measure_fn = measure_tick_noop
+    },
+    [MODE_DIODE] = {
+        .title = "DIODE",
+        .range_name_fn = range_name_diode,
+        .range_next_fn = range_next_noop,
+        .measure_fn = measure_tick_noop
+    }
+};
+
+static const mode_desc_t *active_mode_desc(void)
+{
+    if ((uint32_t)g_app.mode >= MODE_COUNT) {
+        return &k_mode_desc[MODE_RES];
+    }
+    return &k_mode_desc[g_app.mode];
+}
+
+static void mode_next(void)
+{
+    switch (g_app.mode) {
+    case MODE_RES:
+        g_app.mode = MODE_VDC;
+        break;
+    case MODE_VDC:
+        g_app.mode = MODE_FREQ;
+        break;
+    case MODE_FREQ:
+        g_app.mode = MODE_CONT;
+        break;
+    case MODE_CONT:
+        g_app.mode = MODE_DIODE;
+        break;
+    case MODE_DIODE:
+    default:
+        g_app.mode = MODE_RES;
+        break;
     }
 }
 
@@ -168,17 +286,27 @@ static void toggle_debug_view(void)
     g_app.view = (g_app.view == VIEW_RUN_MAIN) ? VIEW_RUN_DEBUG : VIEW_RUN_MAIN;
 }
 
+static bool is_short_up_event(const key_event_t *evt, bool long_fired)
+{
+    if ((evt == NULL) || (evt->type != KEY_EVT_UP) || long_fired) {
+        return false;
+    }
+    return (evt->duration_ms >= KEY_SHORT_MIN_MS);
+}
+
 static void build_main_frame(app_ui_frame_t *frame)
 {
+    const mode_desc_t *md = active_mode_desc();
+    const char *range = md->range_name_fn(&g_app);
     char line[22];
 
     memset(frame, 0, sizeof(*frame));
 
-    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", mode_name(g_app.mode));
+    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", md->title);
     if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s EXP", range_name_for_mode());
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s EXP", range);
     } else {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s", range_name_for_mode());
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s", range);
     }
 
     if (g_app.mode == MODE_RES) {
@@ -197,31 +325,34 @@ static void build_main_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
     }
 
-    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "R:range/mode L:dbg");
+    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "R:RNG/MODE L:DBG");
 }
 
 static void build_debug_frame(app_ui_frame_t *frame)
 {
+    const mode_desc_t *md = active_mode_desc();
+    const char *range = md->range_name_fn(&g_app);
     const res_sample_t *s = &g_app.res_sample;
 
     memset(frame, 0, sizeof(*frame));
 
-    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s", mode_name(g_app.mode));
+    (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s", md->title);
     if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP", range_name_for_mode());
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP", range);
     } else {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s", range_name_for_mode());
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s", range);
     }
 
     if ((g_app.mode == MODE_RES) && s->valid) {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)s->raw_u16);
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)s->mv);
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:%lu", (unsigned long)s->vdda_mv);
-        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "S:%u O:%u A:%u",
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "AFE:OP1 S:%u O:%u",
                        g_app.res_health.short_seen ? 1u : 0u,
-                       g_app.res_health.open_seen ? 1u : 0u,
-                       g_app.res_afe_ok ? 1u : 0u);
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "%s", g_app.res_disp.line_stat);
+                       g_app.res_health.open_seen ? 1u : 0u);
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "K:%u %.15s",
+                       g_app.res_afe_ok ? 1u : 0u,
+                       g_app.res_disp.line_stat);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -238,10 +369,11 @@ static void build_debug_frame(app_ui_frame_t *frame)
         } else {
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:----");
         }
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "AFE:OP1");
         (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT: READY");
     }
 
-    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "LEFT:back");
+    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "LEFT:BACK");
 }
 
 void app_init(void)
@@ -262,7 +394,8 @@ void app_init(void)
     g_app.freq_range_sel = 0u;
 
     g_app.adc_init_err = adc1_init();
-    g_app.adc_last_err = g_app.adc_init_err;
+    g_app.opamp_init_err = opamp1_init();
+    g_app.adc_last_err = (g_app.adc_init_err != ERR_OK) ? g_app.adc_init_err : g_app.opamp_init_err;
     ui_update_debug_adc_sample();
 
     for (i = 0u; i < RES_RANGE_SEL_COUNT; i++) {
@@ -305,8 +438,8 @@ void app_poll_button(void)
                 mode_next();
                 beep_once(80u);
                 changed = true;
-            } else if ((evt.type == KEY_EVT_UP) && !g_app.right_long_fired) {
-                range_next_in_mode();
+            } else if (is_short_up_event(&evt, g_app.right_long_fired)) {
+                active_mode_desc()->range_next_fn(&g_app);
                 beep_once(30u);
                 changed = true;
             }
@@ -317,7 +450,7 @@ void app_poll_button(void)
                 g_app.left_long_fired = false;
             } else if (evt.type == KEY_EVT_LONG) {
                 g_app.left_long_fired = true;
-            } else if ((evt.type == KEY_EVT_UP) && !g_app.left_long_fired) {
+            } else if (is_short_up_event(&evt, g_app.left_long_fired)) {
                 toggle_debug_view();
                 beep_once(25u);
                 changed = true;
@@ -339,47 +472,13 @@ void app_poll_button(void)
 void app_measure_tick(void)
 {
     uint32_t now = bsp_millis();
-    app_err_t err;
 
     if ((int32_t)(now - g_app.next_meas_ms) < 0) {
         return;
     }
     g_app.next_meas_ms = now + MEAS_PERIOD_MS;
 
-    if (g_app.mode != MODE_RES) {
-        return;
-    }
-
-    err = res_acquire_sample(g_app.res_range_sel, &g_app.res_sample);
-    if (err != ERR_OK) {
-        g_app.res_afe_ok = false;
-        g_app.res_calc_ok = false;
-        g_app.res_calc_err = err;
-        res_format_display(g_app.res_range_sel, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
-        g_app.ui_dirty = true;
-        return;
-    }
-
-    res_afe_diag_update(g_app.res_range_sel, &g_app.res_sample);
-    g_app.res_health = res_afe_diag_get(g_app.res_range_sel);
-    g_app.res_afe_ok = res_check_afe_health(g_app.res_range_sel, &g_app.res_sample);
-
-    if (g_app.res_afe_ok) {
-        g_app.res_calc_err = res_estimate_rx(g_app.res_range_sel, &g_app.res_sample, &g_app.res_r_ohm);
-        g_app.res_calc_ok = (g_app.res_calc_err == ERR_OK);
-    } else {
-        g_app.res_calc_ok = false;
-        g_app.res_calc_err = ERR_HW_FAIL;
-        g_app.res_r_ohm = 0.0f;
-    }
-
-    res_format_display(g_app.res_range_sel,
-                       &g_app.res_sample,
-                       g_app.res_afe_ok,
-                       g_app.res_calc_ok,
-                       g_app.res_r_ohm,
-                       &g_app.res_disp);
-    g_app.ui_dirty = true;
+    active_mode_desc()->measure_fn(&g_app);
 }
 
 void app_ui_tick(void)

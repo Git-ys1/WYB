@@ -7,8 +7,8 @@
 
 #define KEY_POLL_MS 1u
 #define KEY_DEBOUNCE_DOWN_MS 2u
-#define KEY_DEBOUNCE_UP_MS 8u
-#define KEY_LONG_MS 600u
+#define KEY_DEBOUNCE_UP_MS 5u
+#define KEY_LONG_MS 400u
 #define KEY_QUEUE_SIZE 24u
 
 typedef struct {
@@ -41,7 +41,7 @@ static key_state_t g_keys[KEY_COUNT];
 static key_queue_t g_queue;
 static uint32_t g_last_poll_ms;
 
-static void queue_push(key_id_t key, key_evt_type_t type, uint32_t now_ms)
+static void queue_push(key_id_t key, key_evt_type_t type, uint32_t now_ms, uint32_t duration_ms)
 {
     uint8_t next;
 
@@ -57,6 +57,7 @@ static void queue_push(key_id_t key, key_evt_type_t type, uint32_t now_ms)
     g_queue.events[g_queue.w].key = key;
     g_queue.events[g_queue.w].type = type;
     g_queue.events[g_queue.w].ms = now_ms;
+    g_queue.events[g_queue.w].duration_ms = duration_ms;
     g_queue.w = next;
 }
 
@@ -129,15 +130,16 @@ void keys_poll(void)
             if (st->stable_pressed) {
                 st->pressed_since_ms = now_ms;
                 st->long_fired = 0u;
-                queue_push((key_id_t)i, KEY_EVT_DOWN, now_ms);
+                queue_push((key_id_t)i, KEY_EVT_DOWN, now_ms, 0u);
             } else {
-                queue_push((key_id_t)i, KEY_EVT_UP, now_ms);
+                uint32_t held_ms = now_ms - st->pressed_since_ms;
+                queue_push((key_id_t)i, KEY_EVT_UP, now_ms, held_ms);
             }
         }
 
         if (st->stable_pressed && !st->long_fired && ((now_ms - st->pressed_since_ms) >= KEY_LONG_MS)) {
             st->long_fired = 1u;
-            queue_push((key_id_t)i, KEY_EVT_LONG, now_ms);
+            queue_push((key_id_t)i, KEY_EVT_LONG, now_ms, now_ms - st->pressed_since_ms);
         }
     }
 }

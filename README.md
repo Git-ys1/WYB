@@ -19,8 +19,8 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 ## 关键约束（当前）
 - 禁止使用 ADS1110 外部 ADC。
-- 采样链路已切换为片内 ADC：`ADC1 + PC0 (ADC12_IN6)`。
-- 电阻测量链路：`MUX -> ADC1(PC0) -> Vred -> Rx`。
+- RES 正式采样链路已迁移为：`RED -> PA1(OPAMP1 VINP) -> OPAMP1 follower -> ADC1(VOPAMP1)`。
+- `PC0` 退出 RES 正式采样链，仅保留调试用途。
 - `I2C3` 初始化暂时保留但不参与测量，后续可在 `.ioc` 清理。
 - OLED 统一显示后端固定为 `oled_smoke_*` 封装（`App/app_display_service.*`）。
 - 主流程默认不再依赖 smoke 编译分流，统一走 `bsp_init + app_init + superloop`。
@@ -52,6 +52,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 ## 当前实现范围
 - 统一显示链路：`app -> presenter -> app_display_service -> oled_smoke`（单写者）。
 - 比赛态输入：`RIGHT` 短按切档、`RIGHT` 长按切功能；开发后门：`LEFT` 短按进/退 Debug。
+- 按键判定语义：短按在 `KEY_EVT_UP` 确认，长按在 `KEY_EVT_LONG` 立即触发；长按后不补发短按。
 - 本阶段正式 UI 不再依赖多级菜单树，收敛为：
   - `RUN_MAIN`（比赛页）
   - `RUN_DEBUG`（诊断页）
@@ -60,6 +61,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `AFE_OK=1`：按 3.5 位格式显示电阻
 - 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
 - `VDC/FREQ/CONT/DIODE` 仍为 READY 占位。
+- RES 当前使用 OPAMP1 内部跟随器采样链路（`PA1 -> OPAMP1 -> ADC VOPAMP1`），不再走 TL072->PC0 正式路径。
 - 片内 ADC 驱动：
   - `adc1_init`
   - `adc1_read_raw_u16`
@@ -96,7 +98,13 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `res_check_afe_health`
   - `res_estimate_rx`
   - `res_format_display`
-- 本轮不启用片内 OPAMP 实测，但软件层已为 OPAMP 迁移收口。
+- 该版本为 OPAMP 迁移前的软件收口基线。
+
+## T-1.1.9-R1 范围声明
+- 修复 `RES/VDC` 标题反置：标题/档位/测量调度统一由 mode descriptor 管理。
+- 右键体验修复：`RIGHT` 短按在 `UP` 确认，`RIGHT` 长按即时切功能，长按后不补发短按。
+- RES 正式采样迁移：`RED -> PA1(OPAMP1 follower) -> ADC VOPAMP1`，`TL072->PC0` 退出正式测量链。
+- 端点门控：`SHORT(<50mV)` 与 `OPEN(>0.9*VDDA)` 均通过后才显示电阻值，否则固定 `AFE BAD`。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -104,7 +112,8 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 ## 冻结引脚映射
 - OLED I2C2：`PC4(SCL), PA8(SDA)`
-- ADC 输入：`PC0 (ADC12_IN6)`
+- RES 输入：`PA1 (OPAMP1_VINP0)` -> `OPAMP1 internal output` -> `ADC1(VOPAMP1)`
+- 调试 ADC 输入：`PC0 (ADC12_IN6)`（非 RES 正式链）
 - RES CD4051：`PD5/PD6/PD7`
 - MODE CD4051：`PB4/PB5/PB6`
 - VOLT CD4051：`PB13/PB14`
@@ -148,7 +157,7 @@ while (1) {
 - ADC 输入点必须限制在 `0~3.3V`。
 - 高源阻抗档位需使用长采样时间（当前已按长采样配置）。
 - OLED 黑屏时优先看 `bootdiag_get_stage()/bootdiag_get_fault()`（STLink Live Watch）。
-- 下一硬件动作已冻结：外部 TL072 退出正式路线，迁移到 `STM32G474 OPAMP VINP -> OPAMP follower -> ADC`。
+- 当前硬件主线：外部 TL072 已退出 RES 正式路线，采用 `STM32G474 OPAMP1 VINP -> OPAMP follower -> ADC`。
 
 ## Git 工作纪律（强制执行）
 - GitHub 账号：`Git-ys1`

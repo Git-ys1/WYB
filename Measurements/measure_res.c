@@ -5,11 +5,11 @@
 
 #include "../Drivers/drv_adc_internal.h"
 #include "../Drivers/drv_mux4051.h"
+#include "../Drivers/drv_opamp_internal.h"
 
 typedef struct {
-    bool enabled;
     mux_res_range_t mux_range;
-    float rref_ohm;
+    res_range_param_t param;
 } range_cfg_t;
 
 static const char *k_range_name[RES_RANGE_SEL_COUNT] = {
@@ -21,11 +21,11 @@ static const char *k_range_name[RES_RANGE_SEL_COUNT] = {
 };
 
 static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
-    [RES_RANGE_SEL_AUTO] = {false, MUX_RES_200R, 0.0f},
-    [RES_RANGE_SEL_200] = {true, MUX_RES_200R, 100.0f},
-    [RES_RANGE_SEL_2K] = {true, MUX_RES_2K, 1000.0f},
-    [RES_RANGE_SEL_20K] = {true, MUX_RES_20K, 10000.0f},
-    [RES_RANGE_SEL_200K] = {true, MUX_RES_200K, 100000.0f}
+    [RES_RANGE_SEL_AUTO] = {MUX_RES_200R, {.enabled = false, .exp_range = false, .rref_nom_ohm = 0.0f, .rref_eff_ohm = 0.0f}},
+    [RES_RANGE_SEL_200] = {MUX_RES_200R, {.enabled = true, .exp_range = true, .rref_nom_ohm = 100.0f, .rref_eff_ohm = 100.0f}},
+    [RES_RANGE_SEL_2K] = {MUX_RES_2K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000.0f, .rref_eff_ohm = 1000.0f}},
+    [RES_RANGE_SEL_20K] = {MUX_RES_20K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 10000.0f, .rref_eff_ohm = 10000.0f}},
+    [RES_RANGE_SEL_200K] = {MUX_RES_200K, {.enabled = true, .exp_range = false, .rref_nom_ohm = 100000.0f, .rref_eff_ohm = 100000.0f}}
 };
 
 static void sample_reset(res_sample_t *out)
@@ -49,7 +49,18 @@ const char *measure_res_range_name(uint8_t range_sel)
 
 bool measure_res_range_is_exp(uint8_t range_sel)
 {
-    return (range_sel == RES_RANGE_SEL_200);
+    if (range_sel >= RES_RANGE_SEL_COUNT) {
+        return false;
+    }
+    return k_range_cfg[range_sel].param.exp_range;
+}
+
+const res_range_param_t *measure_res_get_range_param(uint8_t range_sel)
+{
+    if (range_sel >= RES_RANGE_SEL_COUNT) {
+        return NULL;
+    }
+    return &k_range_cfg[range_sel].param;
 }
 
 const char *measure_res_stat_name(res_live_stat_t stat)
@@ -83,15 +94,19 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
     sample_reset(s);
     cfg = &k_range_cfg[range_sel];
 
-    if (!cfg->enabled) {
+    if (!cfg->param.enabled) {
         s->err = ERR_NOT_IMPL;
+        return s->err;
+    }
+    if (!opamp1_ready()) {
+        s->err = ERR_HW_FAIL;
         return s->err;
     }
 
     mux_set_mode(MUX_MODE_RES);
     mux_set_res_range(cfg->mux_range);
 
-    err = adc1_read_filtered(&s->raw_u16, &s->mv);
+    err = adc1_read_opamp1_filtered(&s->raw_u16, &s->mv);
     if (err != ERR_OK) {
         s->err = err;
         return err;
@@ -118,7 +133,7 @@ app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm
     }
 
     cfg = &k_range_cfg[range_sel];
-    if (!cfg->enabled) {
+    if (!cfg->param.enabled) {
         return ERR_NOT_IMPL;
     }
     if (!s->valid) {
@@ -130,6 +145,6 @@ app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_ohm
         return ERR_OVERRANGE;
     }
 
-    *r_ohm = cfg->rref_ohm * ((float)s->mv / denom_mv);
+    *r_ohm = cfg->param.rref_eff_ohm * ((float)s->mv / denom_mv);
     return ERR_OK;
 }
