@@ -1,8 +1,6 @@
 #include "app.h"
 
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 
 #include "../BSP/bsp.h"
@@ -11,28 +9,17 @@
 #include "../Drivers/drv_beep.h"
 #include "app_bootdiag.h"
 #include "app_display_service.h"
+#include "app_menu_tree.h"
 #include "app_ui_presenter.h"
 
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
-#define BOOT_DIAG_STABLE_MS 10000u
+#define BOOT_DIAG_STABLE_MS 3000u
 #define BEEP_FREQ_HZ 2700u
 
-typedef enum {
-    UI_PAGE_DIAG = 0,
-    UI_PAGE_MENU
-} ui_page_t;
-
-typedef enum {
-    MENU_ITEM_DEBUG = 0,
-    MENU_ITEM_MEASURE
-} menu_item_t;
-
 typedef struct {
-    ui_page_t page;
-    menu_item_t menu_sel;
-    bool menu_enabled;
+    menu_state_t menu;
     bool meas_run_enabled;
     app_err_t presenter_err;
     app_err_t adc_init_err;
@@ -51,27 +38,6 @@ typedef struct {
 } app_ctx_t;
 
 static app_ctx_t g_app;
-
-static void frame_clear(app_ui_frame_t *frame)
-{
-    if (frame == NULL) {
-        return;
-    }
-    memset(frame, 0, sizeof(*frame));
-}
-
-static void frame_set_linef(app_ui_frame_t *frame, uint8_t line, const char *fmt, ...)
-{
-    va_list args;
-
-    if ((frame == NULL) || (line >= 8u) || (fmt == NULL)) {
-        return;
-    }
-
-    va_start(args, fmt);
-    (void)vsnprintf(frame->line[line], sizeof(frame->line[line]), fmt, args);
-    va_end(args);
-}
 
 static void ui_update_debug_adc_sample(void)
 {
@@ -120,78 +86,23 @@ static void ui_update_debug_adc_sample(void)
     }
 }
 
-static void build_diag_frame(app_ui_frame_t *frame)
+static void auto_unlock_menu_if_due(uint32_t now)
 {
-    uint32_t now = bsp_millis();
-    uint32_t elapsed_ms = now - g_app.run_stage_ms;
-    uint32_t remain_s = 0u;
-
-    if (elapsed_ms < BOOT_DIAG_STABLE_MS) {
-        remain_s = (BOOT_DIAG_STABLE_MS - elapsed_ms) / 1000u;
-    }
-
-    frame_clear(frame);
-    frame_set_linef(frame, 0u, "BOOT OK");
-    frame_set_linef(frame, 1u, "STAGE:%u", (unsigned)bootdiag_get_stage());
-    frame_set_linef(frame, 2u, "FAULT:%u", (unsigned)bootdiag_get_fault());
-
-    if (g_app.raw_valid) {
-        frame_set_linef(frame, 3u, "RAW:%5u", g_app.raw_u16);
-    } else {
-        frame_set_linef(frame, 3u, "RAW: ----");
-    }
-
-    if (g_app.mv_valid) {
-        frame_set_linef(frame, 4u, "MV :%lu.%03lu",
-                        (unsigned long)(g_app.mv / 1000u),
-                        (unsigned long)(g_app.mv % 1000u));
-    } else {
-        frame_set_linef(frame, 4u, "MV : ----");
-    }
-
-    if (g_app.vdda_valid) {
-        frame_set_linef(frame, 5u, "VDDA:%4lu", (unsigned long)g_app.vdda_mv);
-    } else {
-        frame_set_linef(frame, 5u, "VDDA:----");
-    }
-
-    if (g_app.adc_last_err == ERR_OK) {
-        frame_set_linef(frame, 6u, "STAT:OK");
-    } else {
-        frame_set_linef(frame, 6u, "STAT:ERR%d", (int)g_app.adc_last_err);
-    }
-
-    if (g_app.menu_enabled) {
-        frame_set_linef(frame, 7u, "OK/BACK:MENU");
-    } else {
-        frame_set_linef(frame, 7u, "MENU IN:%2lus", (unsigned long)remain_s);
-    }
-}
-
-static void build_menu_frame(app_ui_frame_t *frame)
-{
-    frame_clear(frame);
-    frame_set_linef(frame, 0u, "MAIN MENU");
-    frame_set_linef(frame, 1u, "%c DEBUG", (g_app.menu_sel == MENU_ITEM_DEBUG) ? '>' : ' ');
-    frame_set_linef(frame, 2u, "%c MEASURE", (g_app.menu_sel == MENU_ITEM_MEASURE) ? '>' : ' ');
-    frame_set_linef(frame, 4u, "RUN DISABLED");
-    frame_set_linef(frame, 6u, "UP/DN/LR:SEL");
-    frame_set_linef(frame, 7u, "OK/BACK:DIAG");
-}
-
-static void handle_key_short(key_id_t key)
-{
-    if (g_app.page == UI_PAGE_DIAG) {
-        if (g_app.menu_enabled && ((key == KEY_OK) || (key == KEY_BACK))) {
-            g_app.page = UI_PAGE_MENU;
-        }
+    if (app_menu_is_unlocked(&g_app.menu)) {
         return;
     }
 
-    if ((key == KEY_UP) || (key == KEY_DOWN) || (key == KEY_LEFT) || (key == KEY_RIGHT)) {
-        g_app.menu_sel = (g_app.menu_sel == MENU_ITEM_DEBUG) ? MENU_ITEM_MEASURE : MENU_ITEM_DEBUG;
-    } else if ((key == KEY_OK) || (key == KEY_BACK)) {
-        g_app.page = UI_PAGE_DIAG;
+    if (!app_display_ready()) {
+        return;
+    }
+
+    if (bootdiag_get_stage() != BOOT_RUN) {
+        return;
+    }
+
+    if ((now - g_app.run_stage_ms) >= BOOT_DIAG_STABLE_MS) {
+        app_menu_set_unlocked(&g_app.menu, true);
+        g_app.ui_dirty = true;
     }
 }
 
@@ -204,10 +115,8 @@ void app_init(void)
 
     bsp_keys_init();
     beep_init(BEEP_FREQ_HZ);
+    app_menu_init(&g_app.menu);
 
-    g_app.page = UI_PAGE_DIAG;
-    g_app.menu_sel = MENU_ITEM_DEBUG;
-    g_app.menu_enabled = false;
     g_app.meas_run_enabled = false;
     g_app.vdda_mv = 3300u;
 
@@ -243,7 +152,7 @@ void app_poll_button(void)
 
     while (keys_get_event(&evt)) {
         if (evt.type == KEY_EVT_DOWN) {
-            handle_key_short(evt.key);
+            app_menu_handle_key(&g_app.menu, evt.key);
             beep_once(20u);
             changed = true;
         }
@@ -264,6 +173,9 @@ void app_measure_tick(void)
     }
     g_app.next_meas_ms = now + MEAS_PERIOD_MS;
 
+    if (!app_menu_is_run_page(&g_app.menu)) {
+        return;
+    }
     if (!g_app.meas_run_enabled) {
         return;
     }
@@ -273,21 +185,18 @@ void app_ui_tick(void)
 {
     uint32_t now = bsp_millis();
     app_ui_frame_t frame;
+    app_runtime_data_t rt;
     app_err_t err;
+    uint32_t elapsed_ms;
 
     app_display_poll();
+    auto_unlock_menu_if_due(now);
 
-    if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
+    if (app_menu_allows_adc_updates(&g_app.menu) &&
+        ((int32_t)(now - g_app.next_debug_adc_ms) >= 0)) {
         ui_update_debug_adc_sample();
         g_app.ui_dirty = true;
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;
-    }
-
-    if ((!g_app.menu_enabled) && app_display_ready() &&
-        (bootdiag_get_stage() == BOOT_RUN) &&
-        ((now - g_app.run_stage_ms) >= BOOT_DIAG_STABLE_MS)) {
-        g_app.menu_enabled = true;
-        g_app.ui_dirty = true;
     }
 
     if ((int32_t)(now - g_app.next_ui_ms) < 0) {
@@ -299,12 +208,6 @@ void app_ui_tick(void)
         return;
     }
 
-    if (g_app.page == UI_PAGE_MENU) {
-        build_menu_frame(&frame);
-    } else {
-        build_diag_frame(&frame);
-    }
-
     if (!app_ui_presenter_ready()) {
         g_app.presenter_err = app_ui_presenter_last_err();
         bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
@@ -313,12 +216,32 @@ void app_ui_tick(void)
         return;
     }
 
+    elapsed_ms = now - g_app.run_stage_ms;
+    memset(&rt, 0, sizeof(rt));
+    rt.raw_u16 = g_app.raw_u16;
+    rt.raw_valid = g_app.raw_valid;
+    rt.mv = g_app.mv;
+    rt.mv_valid = g_app.mv_valid;
+    rt.vdda_mv = g_app.vdda_mv;
+    rt.vdda_valid = g_app.vdda_valid;
+    rt.adc_stat = g_app.adc_last_err;
+    rt.stage = (uint8_t)bootdiag_get_stage();
+    rt.fault = bootdiag_get_fault();
+    rt.display_ready = app_display_ready();
+    rt.menu_enabled = app_menu_is_unlocked(&g_app.menu);
+    if (elapsed_ms >= BOOT_DIAG_STABLE_MS) {
+        rt.menu_wait_sec = 0u;
+    } else {
+        rt.menu_wait_sec = (BOOT_DIAG_STABLE_MS - elapsed_ms) / 1000u;
+    }
+
+    app_menu_build_frame(&g_app.menu, &rt, &frame);
+
     err = app_ui_presenter_flush(&frame);
     if (err != ERR_OK) {
         g_app.presenter_err = err;
         bootdiag_set_fault(BOOT_FAULT_UI_FLUSH);
         bootdiag_set_stage(BOOT_FAULT);
-        (void)app_display_render_fault(bootdiag_get_fault(), (uint8_t)bootdiag_get_stage());
         g_app.ui_dirty = true;
         return;
     }

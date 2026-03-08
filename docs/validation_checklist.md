@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.6A-R1 Menu Tree Browsing (Run Disabled)
+- [ ] `A6-BOOT-DIAG`: 上电进入诊断页，连续 5 分钟无黑屏/花屏。
+- [ ] `A6-DIAG-GATE`: 3 秒后自动解锁菜单；3 秒内按 `OK` 可立即进菜单。
+- [ ] `A6-TREE`: 主菜单 / DEBUG菜单 / ADC DEBUG / BOOT INFO / MEASURE菜单 / RES RANGE / 各READY页 可完整浏览。
+- [ ] `A6-KEYS`: `UP/DOWN/OK/BACK` 行为正确；主菜单 `LEFT/RIGHT` 可横向切模块。
+- [ ] `A6-ADC-DEBUG`: `UI_DEBUG_ADC` 持续更新 `RAW/MV/VDDA/STAT`。
+- [ ] `A6-MEAS-GATE`: READY页与浏览页均不启动真实测量，`RES_RUN` 不可达。
+- [ ] `A6-SINGLE-WRITER`: 仍只有 `app_display_service.c` 为正式 flush 调用点。
+- [ ] `A6-BOOT-SPINE`: 断开 OLED 仍有 PB12 fault 码（预期3闪），boot spine 未被破坏。
+
 ## T-1.1.5G-R1 Boot Spine Diagnostics
 - [ ] `G1-BOOT-LED`: PB12 在 Boot 快闪、Run 慢闪、Fault 按码闪烁。
 - [ ] `G1-FAULT-CODE`: 断 OLED / 强制显示初始化失败时，fault code 可区分（3 或 4）。

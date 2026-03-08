@@ -50,11 +50,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 详细流程见 [docs/boot_flow_r1.md](/F:/CodeForge/STM32CubeIDE_2.1.0/WorkSpace3/WYB/docs/boot_flow_r1.md)
 
 ## 当前实现范围
-- OLED 调试 UI（I2C2：`PC4/PA8`），支持状态/日志可视化。
+- 统一显示链路：`app -> presenter -> app_display_service -> oled_smoke`（单写者）。
 - 6 键菜单输入（运行时代码初始化，不依赖 `.ioc` 按键配置）。
-- CD4051 通道切换（RES/MODE/VOLT 三组）。
-- TIM2 输入捕获频率/占空比显示。
-- 手动电阻档位：`2K / 20K / 200K`（`AUTO / 200` 为占位）。
+- 菜单树（浏览态）：
+  - `UI_DIAG`
+  - `UI_MAIN_MENU`
+  - `UI_DEBUG_MENU`
+  - `UI_DEBUG_ADC`
+  - `UI_BOOT_INFO`
+  - `UI_MEASURE_MENU`
+  - `UI_RES_RANGE`
+  - `UI_RES_READY / UI_VDC_READY / UI_FREQ_READY / UI_CONT_READY / UI_DIODE_READY`
+- 所有功能页当前为 READY 占位，`RUN` 未启用。
 - 片内 ADC 驱动：
   - `adc1_init`
   - `adc1_read_raw_u16`
@@ -76,10 +83,10 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 当前菜单恢复范围：`L1_MODULE / L2_DEBUG_PAGE / L2_MEAS_FUNC / L3_RES_RANGE / L4_RES_READY`
 - 本轮仍保持测量懒启动：非 `RES_RUN` 页面不启动真实测量。
 
-## T-1.1.5G-R1 范围声明
-- 本轮暂停菜单功能推进，优先保证“启动可判定”。
-- 上电先显示最小诊断页（`BOOT OK / STAGE / FAULT / RAW / MV`）。
-- 菜单仅保留最小首页壳，且仅在诊断页稳定 10 秒后才允许显示。
+## T-1.1.6A-R1 范围声明
+- 在不改显示底层的前提下恢复完整菜单浏览树。
+- 上电先进入诊断页，3 秒后自动解锁菜单；`OK` 可立即进入菜单。
+- 本轮不启用任何真实测量运行，保持 `RUN DISABLED` 占位。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
