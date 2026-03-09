@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.3.1-R1 DIODE Plan-A
+- [ ] `D31-FWD-4148`: 1N4148 正向，显示 `A=RED K=BLK`，`Vf≈0.5~0.8V`，`STAT:OK`。
+- [ ] `D31-REV-4148`: 1N4148 反接，显示 `OL` + `REV/OPEN`。
+- [ ] `D31-SCHOTTKY`: 肖特基正向，`Vf≈0.2~0.4V`。
+- [ ] `D31-OPEN`: 开路显示 `OL`。
+- [ ] `D31-SHORT`: 短接显示 `SHORT`。
+- [ ] `D31-EXIT-HIZ`: 离开 DIODE 后 `PB0` 回高阻（示波器/万用表确认）。
+- [ ] `D31-DBG`: Debug 页可见 `RAW/MV/VDDA/DSTAT`。
+- [ ] `D31-REGRESSION`: CONT/RES 无回归，OLED 5 分钟无黑屏/花屏。
+
 ## T-1.2.2-R1 CONT UX Tuning
 - [ ] `C22-ENTER-150MS`: CONT 下短接后 `<=150ms` 内进入连续鸣叫。
 - [ ] `C22-EXIT-150MS`: CONT 下松开后 `<=150ms` 内停止鸣叫。

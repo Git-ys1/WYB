@@ -12,6 +12,7 @@
 #include "../Measurements/measure_res.h"
 #include "../Measurements/measure_res_auto.h"
 #include "../Measurements/measure_cont.h"
+#include "../Measurements/measure_diode.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
 #include "app_bootdiag.h"
@@ -81,6 +82,8 @@ struct app_ctx_s {
 
     cont_ctx_t cont_ctx;
     cont_result_t cont;
+    diode_ctx_t diode_ctx;
+    diode_result_t diode;
 
     uint32_t next_meas_ms;
     uint32_t next_ui_ms;
@@ -290,6 +293,19 @@ static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
     (void)now_ms;
 }
 
+static void measure_tick_diode(app_ctx_t *ctx, uint32_t now_ms)
+{
+    app_err_t err;
+
+    err = diode_step(&ctx->diode_ctx, now_ms, &ctx->diode);
+    if (err != ERR_OK) {
+        ctx->diode.valid = false;
+        ctx->diode.err = err;
+        ctx->diode.stat = DIODE_STAT_ERR;
+    }
+    ctx->ui_dirty = true;
+}
+
 static void measure_tick_cont(app_ctx_t *ctx, uint32_t now_ms)
 {
     app_err_t err;
@@ -337,7 +353,7 @@ static const mode_desc_t k_mode_desc[MODE_COUNT] = {
         .title = "DIODE",
         .range_name_fn = range_name_diode,
         .range_next_fn = range_next_noop,
-        .measure_fn = measure_tick_noop
+        .measure_fn = measure_tick_diode
     }
 };
 
@@ -377,6 +393,12 @@ static void mode_next(void)
     }
     if ((prev != MODE_CONT) && (g_app.mode == MODE_CONT)) {
         cont_reset(&g_app.cont_ctx);
+    }
+    if ((prev == MODE_DIODE) && (g_app.mode != MODE_DIODE)) {
+        diode_exit(&g_app.diode_ctx);
+    }
+    if ((prev != MODE_DIODE) && (g_app.mode == MODE_DIODE)) {
+        diode_enter(&g_app.diode_ctx);
     }
 }
 
@@ -432,7 +454,17 @@ static void build_main_frame(app_ui_frame_t *frame)
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", md->title);
-    if (g_app.mode == MODE_CONT) {
+    if (g_app.mode == MODE_DIODE) {
+        if (g_app.diode.stat == DIODE_STAT_OK) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "A=RED K=BLK");
+        } else if (g_app.diode.stat == DIODE_STAT_OL) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "REV/OPEN");
+        } else if (g_app.diode.stat == DIODE_STAT_SHORT) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "SHORT");
+        } else {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "PROBE...");
+        }
+    } else if (g_app.mode == MODE_CONT) {
         if (!g_app.cont.sample_valid) {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: PROBE...");
         } else {
@@ -472,6 +504,27 @@ static void build_main_frame(app_ui_frame_t *frame)
         }
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "BEEP: %s", g_app.cont.beep_on ? "ON" : "OFF");
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "CONT MODE");
+    } else if (g_app.mode == MODE_DIODE) {
+        if (g_app.diode.stat == DIODE_STAT_OK) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "Vf=%lu.%03luV",
+                           (unsigned long)(g_app.diode.vf_mv / 1000u),
+                           (unsigned long)(g_app.diode.vf_mv % 1000u));
+        } else if (g_app.diode.stat == DIODE_STAT_OL) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OL");
+        } else if (g_app.diode.stat == DIODE_STAT_SHORT) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "0.000V");
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "Vf=----");
+        }
+
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s", diode_stat_name(g_app.diode.stat));
+        if (g_app.diode.valid) {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:%lu RAW:%u",
+                           (unsigned long)g_app.diode.mv,
+                           (unsigned)g_app.diode.raw_u16);
+        } else {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:---- RAW:----");
+        }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
@@ -495,6 +548,8 @@ static void build_debug_frame(app_ui_frame_t *frame)
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "AUTO:%s MUX:%u",
                        locked, (unsigned)g_app.res_binding.mux_idx);
+    } else if (g_app.mode == MODE_DIODE) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "DIODE MUX:DIODE");
     } else if (g_app.mode == MODE_CONT) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT FIXED:R200");
     } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
@@ -549,6 +604,26 @@ static void build_debug_frame(app_ui_frame_t *frame)
                        (unsigned)g_app.cont.vote_exit);
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "STAT:%s",
                        cont_get_state_name(g_app.cont.state));
+    } else if (g_app.mode == MODE_DIODE) {
+        if (g_app.diode.valid) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.diode.raw_u16);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.diode.mv);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:%lu", (unsigned long)g_app.diode.vdda_mv);
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:----");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :----");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:----");
+        }
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "DSTAT:%s", diode_stat_name(g_app.diode.stat));
+        if (g_app.diode.stat == DIODE_STAT_OK) {
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "VF:%lu.%03luV",
+                           (unsigned long)(g_app.diode.vf_mv / 1000u),
+                           (unsigned long)(g_app.diode.vf_mv % 1000u));
+        } else {
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "VF:----");
+        }
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
+                       (unsigned)g_app.diode.err);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -606,6 +681,11 @@ void app_init(void)
     memset(&g_app.cont, 0, sizeof(g_app.cont));
     g_app.cont.state = CONT_STATE_OPEN;
     g_app.cont.err = ERR_OK;
+    diode_init(&g_app.diode_ctx);
+    diode_exit(&g_app.diode_ctx);
+    memset(&g_app.diode, 0, sizeof(g_app.diode));
+    g_app.diode.stat = DIODE_STAT_PROBE;
+    g_app.diode.err = ERR_NOT_IMPL;
     g_app.res_auto_active = false;
     (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
     res_format_display(&g_app.res_binding, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
@@ -698,7 +778,7 @@ void app_ui_tick(void)
     app_display_poll();
 
     if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
-        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT)) {
+        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) && (g_app.mode != MODE_DIODE)) {
             ui_update_debug_adc_sample();
         }
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;

@@ -60,7 +60,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `AFE_OK=0`：`R: ----`, `STAT: AFE BAD`
   - `AFE_OK=1`：按 3.5 位格式显示电阻
 - 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
-- `VDC/FREQ/CONT/DIODE` 仍为 READY 占位。
+- `VDC/FREQ` 仍为 READY 占位；`CONT` 与 `DIODE` 已进入正式测量页。
 - RES 当前使用 OPAMP1 内部跟随器采样链路（`PA1 -> OPAMP1 -> ADC VOPAMP1`），不再走 TL072->PC0 正式路径。
 - 片内 ADC 驱动：
   - `adc1_init`
@@ -168,6 +168,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - CONT 正式页不再显示 `R` 数值，仅显示 `PROBE/BEEP/OPEN` 与状态。
 - 进入 Debug 且当前为 CONT 时立即静音；离开 CONT 继续保持立即静音。
 
+## T-1.3.1-R1 二极管测量（方案A）
+- 从 `feature/t1.2-cont-r1` 开分支实现方案A单向激励，不做自动双向判极性（方案B）。
+- 正式链路复用：`RED -> PA1(OPAMP1 follower) -> ADC1(VOPAMP1)`，并切 `MUX_MODE_DIODE`。
+- 新增 `PB0 = DIODE_DRV`：
+  - `diode_drv_on()`：`PB0` 推挽输出高（激励打开）
+  - `diode_drv_off()`：`PB0` 配置为 `Analog`（Hi-Z，激励关闭）
+- 判定阈值：
+  - `mv < 50mV` -> `SHORT`
+  - `mv > 0.95*VDDA` -> `OL / REV-OPEN`
+  - 其余 -> `OK`，显示 `A=RED K=BLK` 与 `Vf=x.xxxV`
+- 离开 DIODE 模式时 `PB0` 立即回高阻，避免激励在其它模式误保持。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
@@ -181,6 +193,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - VOLT CD4051：`PB13/PB14`
 - 频率输入捕获：`PA0 (TIM2_CH1)`
 - 蜂鸣器：`PB1`（GPIO，active-low，PNP 高边）
+- 二极管激励：`PB0`（DIODE_DRV，高=激励，Analog=高阻关闭）
 - RGB 心跳灯（Active-Low）：
   - `蓝=PE3`
   - `红=PE4`
