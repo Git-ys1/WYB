@@ -11,6 +11,9 @@ extern I2C_HandleTypeDef hi2c3;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim16;
 
+#define BEEP_CTRL_GPIO_Port GPIOB
+#define BEEP_CTRL_Pin GPIO_PIN_1
+
 typedef struct {
     GPIO_TypeDef *port;
     uint16_t pin;
@@ -26,7 +29,7 @@ static const pin_desc_t k_pin_desc[BSP_PIN_COUNT] = {
     [BSP_PIN_VOLT_A] = {VOLTAGE_MODE_A_GPIO_Port, VOLTAGE_MODE_A_Pin},
     [BSP_PIN_VOLT_B] = {VOLTAGE_MODE_B_GPIO_Port, VOLTAGE_MODE_B_Pin},
     [BSP_PIN_KEY] = {KEY_GPIO_Port, KEY_Pin},
-    [BSP_PIN_BEEP] = {BEEP_GPIO_Port, BEEP_Pin}
+    [BSP_PIN_BEEP] = {BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin}
 };
 
 static volatile uint32_t g_cap_period_ticks;
@@ -75,30 +78,18 @@ static void beep_pin_to_gpio_output(void)
 {
     GPIO_InitTypeDef init = {0};
 
-    init.Pin = BEEP_Pin;
+    init.Pin = BEEP_CTRL_Pin;
     init.Mode = GPIO_MODE_OUTPUT_PP;
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(BEEP_GPIO_Port, &init);
-}
-
-static void beep_pin_to_tim16_af(void)
-{
-    GPIO_InitTypeDef init = {0};
-
-    init.Pin = BEEP_Pin;
-    init.Mode = GPIO_MODE_AF_PP;
-    init.Pull = GPIO_NOPULL;
-    init.Speed = GPIO_SPEED_FREQ_LOW;
-    init.Alternate = GPIO_AF1_TIM16;
-    HAL_GPIO_Init(BEEP_GPIO_Port, &init);
+    HAL_GPIO_Init(BEEP_CTRL_GPIO_Port, &init);
 }
 
 static void sw_pwm_stop(void)
 {
     g_sw_pwm.enabled = 0u;
     g_sw_pwm.level = 0u;
-    HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* active-low mute */
 }
 
 static void sw_pwm_start(uint32_t freq_hz)
@@ -119,7 +110,7 @@ static void sw_pwm_start(uint32_t freq_hz)
     g_sw_pwm.level = 0u;
     g_sw_pwm.half_period_ms = half_period_ms;
     g_sw_pwm.next_toggle_ms = HAL_GetTick() + half_period_ms;
-    HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* start muted */
 }
 
 static void sw_pwm_update(uint32_t now_ms)
@@ -130,7 +121,7 @@ static void sw_pwm_update(uint32_t now_ms)
 
     if ((int32_t)(now_ms - g_sw_pwm.next_toggle_ms) >= 0) {
         g_sw_pwm.level ^= 1u;
-        HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, g_sw_pwm.level ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, g_sw_pwm.level ? GPIO_PIN_RESET : GPIO_PIN_SET);
         g_sw_pwm.next_toggle_ms = now_ms + g_sw_pwm.half_period_ms;
     }
 }
@@ -376,6 +367,8 @@ void bsp_init(void)
     g_sw_pwm.level = 0u;
     g_sw_pwm.half_period_ms = 1u;
     g_sw_pwm.next_toggle_ms = 0u;
+    beep_pin_to_gpio_output();
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* default mute (active-low) */
     g_oled_bus_mode = BSP_OLED_BUS_HW_I2C2;
     bsp_oled_bus_reset_stats();
 
@@ -589,56 +582,16 @@ bool bsp_pwm_start(bsp_pwm_t pwm, uint32_t freq_hz, uint8_t duty_pct)
     g_pwm_hw_active = 0u;
     sw_pwm_stop();
 
-    pclk2 = HAL_RCC_GetPCLK2Freq();
-    hclk = HAL_RCC_GetHCLKFreq();
-    tim_clk = (pclk2 == hclk) ? pclk2 : (pclk2 * 2u);
+    (void)cfg;
+    (void)pclk2;
+    (void)hclk;
+    (void)tim_clk;
+    (void)prescaler;
+    (void)period;
+    (void)duty_pct;
 
-    prescaler = tim_clk / (freq_hz * 65536u);
-    if (prescaler > 0xFFFFu) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-
-    period = tim_clk / ((prescaler + 1u) * freq_hz);
-    if (period == 0u) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-    period -= 1u;
-    if (period > 0xFFFFu) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-
-    htim16.Init.Prescaler = prescaler;
-    htim16.Init.Period = period;
-
-    if (HAL_TIM_PWM_Init(&htim16) != HAL_OK) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-
-    cfg.OCMode = TIM_OCMODE_PWM1;
-    cfg.Pulse = ((period + 1u) * duty_pct) / 100u;
-    cfg.OCPolarity = TIM_OCPOLARITY_HIGH;
-    cfg.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-    cfg.OCFastMode = TIM_OCFAST_DISABLE;
-    cfg.OCIdleState = TIM_OCIDLESTATE_RESET;
-    cfg.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-    if (HAL_TIM_PWM_ConfigChannel(&htim16, &cfg, TIM_CHANNEL_1) != HAL_OK) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-
-    beep_pin_to_tim16_af();
-
-    if (HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1) != HAL_OK) {
-        sw_pwm_start(freq_hz);
-        return true;
-    }
-
-    g_pwm_hw_active = 1u;
+    /* PB1 beeper path: keep software PWM fallback only. */
+    sw_pwm_start(freq_hz);
     return true;
 }
 

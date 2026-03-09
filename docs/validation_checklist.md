@@ -1,5 +1,14 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.2.1-R1 Buzzer PB1 Hotfix
+- [ ] `T21-BOOT-01`: 蜂鸣器完整接线后冷上电可正常启动，OLED 不黑屏。
+- [ ] `T21-MUTE-01`: 上电默认静音（无瞬时误叫）。
+- [ ] `T21-CONT-ON-01`: 仅 `MODE_CONT` 且短接探针时连续鸣叫。
+- [ ] `T21-CONT-OFF-01`: 离开 `MODE_CONT` 立即静音。
+- [ ] `T21-KEY-01`: 普通按键切页/切功能不触发持续误叫。
+- [ ] `T21-MAP-01`: 代码控制链已迁移到 `PB1(active-low)`，`PB8` 不再作为蜂鸣器控制脚。
+- [ ] `T21-STABLE-01`: 5 分钟运行无新增黑屏/花屏。
+
 ## T-1.2.0-R1 RES Baseline + CONT v1
 - [ ] `T20-RES-BASE-01`: RES 回到 `T-1.1.12-R1` 可用基线（手动四档+AUTO 正常）。
 - [ ] `T20-RES-BASE-02`: `Rcalc/Rdisp` 无 `0HM/0L` 回归。

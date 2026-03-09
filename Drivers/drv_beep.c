@@ -1,7 +1,6 @@
 #include "drv_beep.h"
 
 #include "../BSP/bsp.h"
-#include "../Core/Inc/main.h"
 
 #include "stm32g4xx_hal.h"
 
@@ -14,6 +13,8 @@ typedef enum {
 
 #define BEEP_BACKEND_ACTIVE 1u
 #define BEEP_ACTIVE_LOW 1u
+#define BEEP_CTRL_GPIO_Port GPIOB
+#define BEEP_CTRL_Pin GPIO_PIN_1
 
 #if !BEEP_BACKEND_ACTIVE
 static uint32_t g_freq_hz = 2700u;
@@ -28,11 +29,13 @@ static void beep_hw_init(void)
     GPIO_InitTypeDef init = {0};
 
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    init.Pin = BEEP_Pin;
+    init.Pin = BEEP_CTRL_Pin;
     init.Mode = GPIO_MODE_OUTPUT_PP;
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(BEEP_GPIO_Port, &init);
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* default mute */
+    HAL_GPIO_Init(BEEP_CTRL_GPIO_Port, &init);
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* keep mute */
 }
 
 static void beep_hw_set(bool on)
@@ -45,7 +48,7 @@ static void beep_hw_set(bool on)
     } else {
         ps = on ? GPIO_PIN_SET : GPIO_PIN_RESET;
     }
-    HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, ps);
+    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, ps);
 #else
     if (on) {
         (void)bsp_pwm_start(BSP_PWM_BEEP, g_freq_hz, 50u);

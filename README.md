@@ -147,9 +147,16 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 状态机：`OPEN -> BEEP_ON -> BEEP_OFF_WAIT`，带迟滞、连续投票和 settle。
   - 默认阈值：`enter=10.0Ω`，`exit=13.0Ω`，`vote=3`，`settle=120ms`。
 - 蜂鸣器后端改为 active-buzzer 语义：
-  - 当前硬件为 **PNP 高边驱动**，`PB8` 低电平有效。
+  - 当前硬件为 **PNP 高边驱动**，`PB1` 低电平有效。
   - `beep_continuous(true)` -> 响；`beep_continuous(false)` -> 停。
   - 离开 `MODE_CONT` 必须立即关蜂鸣。
+
+## T-1.2.1-R1 启动热修（蜂鸣器迁移）
+- 蜂鸣器控制脚从 `PB8` 迁移到 `PB1`，`PB8` 退出蜂鸣器控制链。
+- 驱动极性固定为 active-low（PNP 高边）：
+  - `PB1=Low` -> 响
+  - `PB1=High` -> 静音
+- `bsp_init + beep_init` 均确保上电默认静音（高电平），避免启动期误鸣叫。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -163,7 +170,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - MODE CD4051：`PB4/PB5/PB6`
 - VOLT CD4051：`PB13/PB14`
 - 频率输入捕获：`PA0 (TIM2_CH1)`
-- 蜂鸣器：`PB8`（优先 `TIM16_CH1`）
+- 蜂鸣器：`PB1`（GPIO，active-low，PNP 高边）
 - RGB 心跳灯（Active-Low）：
   - `蓝=PE3`
   - `红=PE4`
