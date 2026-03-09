@@ -137,8 +137,28 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 第3行主值（正常值/`OL`/`----`）
   - 第4行状态（`OK/AUTO/OPEN/SHORT/ERR`）
 - AUTO 边界策略：
-  - 最高档仍 OPEN：锁定 `200K`，显示 `OL`
-  - 最低档仍 SHORT：锁定 `200`，显示 `SHORT`
+- 最高档仍 OPEN：锁定 `200K`，显示 `OL`
+- 最低档仍 SHORT：锁定 `200`，显示 `SHORT`
+
+## T-1.1.13-R2 热修复口径
+- 本轮仅修复两项回归，不新增功能：
+  - `Rcalc` 正常但 `Rdisp` 异常（恒 `0/OL/---`）；
+  - RES 短按切量程卡手。
+- RES 显示链路分层固定：
+  - `Rcalc`（计算值）；
+  - `Rdisp kind`（`VALUE/OPEN/SHORT/OVR/ERR`）；
+  - `Rdisp text`（最终显示字符串）。
+- 切档交互改为“即时反馈 + 非阻塞 settle(100ms)”：
+  - `RIGHT DOWN` 立即更新量程标题；
+  - `RIGHT UP`（未触发LONG）提交量程；
+  - settle 期间可显示 `...`，但不阻塞 UI。
+- 电阻模式判定收敛：
+  - 量程内优先显示数值；
+  - 开路/超量程显示 `OL`；
+  - 仅近 0Ω（当前阈值 `<=3.0Ω`）显示 `SHORT`。
+- 当前精度冻结口径：
+  - 主档位（2K/20K/200K）约 `1%~2%` 级先接受，进入下一测量项；
+  - 200 档继续实验档，不作为主通过条件。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。

@@ -54,6 +54,25 @@ static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
 };
 static uint8_t s_last_range_sel = 0xFFu;
 
+#define RES_SHORT_OHM_TH 3.0f
+#define RES_OPEN_MARGIN_MV 80u
+
+static float res_range_max_ohm(uint8_t range_sel)
+{
+    switch (range_sel) {
+    case RES_RANGE_SEL_200:
+        return 199.9f;
+    case RES_RANGE_SEL_2K:
+        return 1999.0f;
+    case RES_RANGE_SEL_20K:
+        return 19990.0f;
+    case RES_RANGE_SEL_200K:
+        return 199900.0f;
+    default:
+        return 0.0f;
+    }
+}
+
 static void sample_reset(res_sample_t *out)
 {
     if (out == NULL) {
@@ -121,6 +140,40 @@ const char *measure_res_stat_name(res_live_stat_t stat)
     default:
         return "ERR";
     }
+}
+
+res_live_stat_t measure_res_classify_display_state(uint8_t range_sel,
+                                                   const res_sample_t *s,
+                                                   bool calc_ok,
+                                                   float r_calc_ohm)
+{
+    float max_ohm;
+
+    if ((range_sel >= RES_RANGE_SEL_COUNT) || (range_sel == RES_RANGE_SEL_AUTO) || (s == NULL)) {
+        return RES_STAT_ERR;
+    }
+    if (!s->valid) {
+        return RES_STAT_ERR;
+    }
+
+    if ((s->vdda_mv > RES_OPEN_MARGIN_MV) && (s->mv >= (s->vdda_mv - RES_OPEN_MARGIN_MV))) {
+        return RES_STAT_OPEN;
+    }
+
+    if (!calc_ok) {
+        return RES_STAT_OVR;
+    }
+
+    if (r_calc_ohm <= RES_SHORT_OHM_TH) {
+        return RES_STAT_SHORT;
+    }
+
+    max_ohm = res_range_max_ohm(range_sel);
+    if ((max_ohm > 0.0f) && (r_calc_ohm > max_ohm)) {
+        return RES_STAT_OVR;
+    }
+
+    return RES_STAT_OK;
 }
 
 app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)

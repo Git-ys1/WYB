@@ -1,5 +1,16 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.13-R2 RES Hotfix
+- [ ] `R13R2-KEY-01`: RES 模式 `RIGHT` 短按切档即时反馈（量程标题立即变化）。
+- [ ] `R13R2-KEY-02`: `RIGHT` 长按切功能稳定，且不补发短按切档。
+- [ ] `R13R2-SETTLE-01`: 量程切换 settle 非阻塞（约100ms），UI 无卡顿。
+- [ ] `R13R2-DISP-01`: 不再出现 `Rcalc` 正常但 `Rdisp` 恒 `0/OL/---`。
+- [ ] `R13R2-RES-01`: 电阻模式量程内优先显示数值，不误报 `SHORT`。
+- [ ] `R13R2-RES-02`: 开路/超量程显示 `OL`；仅近0Ω显示 `SHORT`。
+- [ ] `R13R2-DBG-01`: Debug 继续可见 `RAW/MV/Rcalc/Rdisp`（含既有 `RREF/MUX`）。
+- [ ] `R13R2-AUTO-01`: AUTO 行为无回归（锁档与显示稳定）。
+- [ ] `R13R2-STABLE-01`: 连续 5 分钟无黑屏/花屏，单写者不破坏。
+
 ## T-1.1.12-R1 RES AUTO Range
 - [ ] `A12-MANUAL-REG`: 手动四档（200/2K/20K/200K）无回归。
 - [ ] `A12-AUTO-ENTER`: 可进入 AUTO，页面稳定显示 `AUTO <locked_subrange>`。

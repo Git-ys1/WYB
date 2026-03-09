@@ -57,6 +57,10 @@ typedef struct {
 
 app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s);
 app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_calc_ohm); /* Ohm */
+res_live_stat_t measure_res_classify_display_state(uint8_t range_sel,
+                                                   const res_sample_t *s,
+                                                   bool calc_ok,
+                                                   float r_calc_ohm);
 const char *measure_res_range_name(uint8_t range_sel);
 bool measure_res_range_is_exp(uint8_t range_sel);
 const res_range_param_t *measure_res_get_range_param(uint8_t range_sel);

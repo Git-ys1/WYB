@@ -20,4 +20,11 @@ void res_format_display(const res_range_binding_t *binding,
                         float r_calc_ohm,
                         res_display_text_t *out);
 
+void res_format_display_state(const res_range_binding_t *binding,
+                              const res_sample_t *s,
+                              bool calc_ok,
+                              float r_calc_ohm,
+                              res_live_stat_t state,
+                              res_display_text_t *out);
+
 #endif

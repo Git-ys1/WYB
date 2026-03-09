@@ -21,6 +21,7 @@
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
+#define RANGE_SETTLE_MS 100u
 #define BEEP_FREQ_HZ 2700u
 
 #define KEY_SHORT_MIN_MS 15u
@@ -47,8 +48,11 @@ struct app_ctx_s {
     app_view_t view;
 
     uint8_t res_range_sel;
+    uint8_t pending_res_range_sel;
     uint8_t vdc_range_sel;
     uint8_t freq_range_sel;
+    bool pending_res_range_active;
+    uint32_t range_settle_deadline_ms;
 
     bool right_long_fired;
     bool left_long_fired;
@@ -90,6 +94,9 @@ static const char *k_freq_name[FREQ_RANGE_COUNT] = {"20Hz", "200Hz", "2kHz", "20
 
 static const char *range_name_res(const app_ctx_t *ctx)
 {
+    if (ctx->pending_res_range_active) {
+        return measure_res_range_name(ctx->pending_res_range_sel);
+    }
     return measure_res_range_name(ctx->res_range_sel);
 }
 
@@ -118,6 +125,30 @@ static const char *range_name_diode(const app_ctx_t *ctx)
 static void range_next_res(app_ctx_t *ctx)
 {
     ctx->res_range_sel = (uint8_t)((ctx->res_range_sel + 1u) % RES_RANGE_SEL_COUNT);
+}
+
+static uint8_t res_next_range(uint8_t range_sel)
+{
+    return (uint8_t)((range_sel + 1u) % RES_RANGE_SEL_COUNT);
+}
+
+static void res_settle_enter(app_ctx_t *ctx, uint32_t now_ms)
+{
+    ctx->range_settle_deadline_ms = now_ms + RANGE_SETTLE_MS;
+}
+
+static bool res_settle_active(const app_ctx_t *ctx, uint32_t now_ms)
+{
+    return ((int32_t)(now_ms - ctx->range_settle_deadline_ms) < 0);
+}
+
+static void res_mark_settling(res_display_text_t *disp)
+{
+    if (disp == NULL) {
+        return;
+    }
+    (void)snprintf(disp->stat_str, sizeof(disp->stat_str), "...");
+    (void)snprintf(disp->line_stat, sizeof(disp->line_stat), "STAT: %s", disp->stat_str);
 }
 
 static void range_next_vdc(app_ctx_t *ctx)
@@ -186,7 +217,13 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
 {
     app_err_t err;
     bool have_binding;
-    bool display_calc_ok;
+    res_live_stat_t disp_state;
+
+    if (res_settle_active(ctx, now_ms)) {
+        res_mark_settling(&ctx->res_disp);
+        ctx->ui_dirty = true;
+        return;
+    }
 
     if (ctx->res_range_sel == RES_RANGE_SEL_AUTO) {
         if (!ctx->res_auto_active) {
@@ -214,7 +251,21 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
         ctx->res_calc_ok = ctx->res_auto.calc_ok;
         ctx->res_calc_err = ctx->res_auto.calc_err;
         ctx->res_r_calc_ohm = ctx->res_auto.r_calc_ohm;
-        ctx->res_disp = ctx->res_auto.disp;
+        if (ctx->res_auto.in_settle) {
+            ctx->res_disp = ctx->res_auto.disp;
+            res_mark_settling(&ctx->res_disp);
+        } else {
+            disp_state = measure_res_classify_display_state(ctx->res_auto.locked_range_sel,
+                                                            &ctx->res_sample,
+                                                            ctx->res_calc_ok,
+                                                            ctx->res_r_calc_ohm);
+            res_format_display_state(&ctx->res_binding,
+                                     &ctx->res_sample,
+                                     ctx->res_calc_ok,
+                                     ctx->res_r_calc_ohm,
+                                     disp_state,
+                                     &ctx->res_disp);
+        }
         ctx->ui_dirty = true;
         return;
     }
@@ -256,26 +307,16 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
         ctx->res_r_calc_ohm = 0.0f;
     }
 
-    display_calc_ok = ctx->res_afe_ok && ctx->res_calc_ok;
-    res_format_display(&ctx->res_binding,
-                       &ctx->res_sample,
-                       ctx->res_afe_ok,
-                       display_calc_ok,
-                       ctx->res_r_calc_ohm,
-                       &ctx->res_disp);
-    if (ctx->res_sample.valid) {
-        if (ctx->res_window == RES_AFE_WIN_SHORT) {
-            (void)snprintf(ctx->res_disp.r_disp_str, sizeof(ctx->res_disp.r_disp_str), "----");
-            (void)snprintf(ctx->res_disp.stat_str, sizeof(ctx->res_disp.stat_str), "SHORT");
-            (void)snprintf(ctx->res_disp.line_value, sizeof(ctx->res_disp.line_value), "R: %s", ctx->res_disp.r_disp_str);
-            (void)snprintf(ctx->res_disp.line_stat, sizeof(ctx->res_disp.line_stat), "STAT: %s", ctx->res_disp.stat_str);
-        } else if (ctx->res_window == RES_AFE_WIN_OPEN) {
-            (void)snprintf(ctx->res_disp.r_disp_str, sizeof(ctx->res_disp.r_disp_str), "----");
-            (void)snprintf(ctx->res_disp.stat_str, sizeof(ctx->res_disp.stat_str), "OPEN");
-            (void)snprintf(ctx->res_disp.line_value, sizeof(ctx->res_disp.line_value), "R: %s", ctx->res_disp.r_disp_str);
-            (void)snprintf(ctx->res_disp.line_stat, sizeof(ctx->res_disp.line_stat), "STAT: %s", ctx->res_disp.stat_str);
-        }
-    }
+    disp_state = measure_res_classify_display_state(ctx->res_range_sel,
+                                                    &ctx->res_sample,
+                                                    ctx->res_calc_ok,
+                                                    ctx->res_r_calc_ohm);
+    res_format_display_state(&ctx->res_binding,
+                             &ctx->res_sample,
+                             ctx->res_calc_ok,
+                             ctx->res_r_calc_ohm,
+                             disp_state,
+                             &ctx->res_disp);
     ctx->ui_dirty = true;
 }
 
@@ -346,6 +387,10 @@ static void mode_next(void)
         g_app.mode = MODE_RES;
         break;
     }
+
+    if (g_app.mode != MODE_RES) {
+        g_app.pending_res_range_active = false;
+    }
 }
 
 static void toggle_debug_view(void)
@@ -389,19 +434,20 @@ static void build_main_frame(app_ui_frame_t *frame)
 {
     const mode_desc_t *md = active_mode_desc();
     const char *range = md->range_name_fn(&g_app);
+    uint8_t ui_res_range = g_app.pending_res_range_active ? g_app.pending_res_range_sel : g_app.res_range_sel;
     char line[22];
 
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", md->title);
-    if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
+    if ((g_app.mode == MODE_RES) && (ui_res_range == RES_RANGE_SEL_AUTO)) {
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         if (measure_res_range_is_exp(g_app.res_auto.locked_range_sel)) {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: AUTO %s EXP", locked);
         } else {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: AUTO %s", locked);
         }
-    } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
+    } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(ui_res_range)) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s EXP", range);
     } else {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: %s", range);
@@ -512,8 +558,11 @@ void app_init(void)
     g_app.mode = MODE_RES;
     g_app.view = VIEW_RUN_MAIN;
     g_app.res_range_sel = RES_RANGE_SEL_2K;
+    g_app.pending_res_range_sel = g_app.res_range_sel;
+    g_app.pending_res_range_active = false;
     g_app.vdc_range_sel = 0u;
     g_app.freq_range_sel = 0u;
+    g_app.range_settle_deadline_ms = 0u;
 
     g_app.adc_init_err = adc1_init();
     g_app.opamp_init_err = opamp1_init();
@@ -558,13 +607,31 @@ void app_poll_button(void)
         case KEY_RIGHT:
             if (evt.type == KEY_EVT_DOWN) {
                 g_app.right_long_fired = false;
+                if (g_app.mode == MODE_RES) {
+                    uint8_t base_range = g_app.pending_res_range_active ? g_app.pending_res_range_sel : g_app.res_range_sel;
+                    g_app.pending_res_range_sel = res_next_range(base_range);
+                    g_app.pending_res_range_active = true;
+                    changed = true;
+                }
             } else if (evt.type == KEY_EVT_LONG) {
                 g_app.right_long_fired = true;
+                g_app.pending_res_range_active = false;
                 mode_next();
                 beep_once(80u);
                 changed = true;
             } else if (is_short_up_event(&evt, g_app.right_long_fired)) {
-                active_mode_desc()->range_next_fn(&g_app);
+                if ((g_app.mode == MODE_RES) && g_app.pending_res_range_active) {
+                    g_app.res_range_sel = g_app.pending_res_range_sel;
+                    g_app.pending_res_range_active = false;
+                    g_app.res_auto_active = false;
+                    res_settle_enter(&g_app, now);
+                } else {
+                    active_mode_desc()->range_next_fn(&g_app);
+                    if (g_app.mode == MODE_RES) {
+                        g_app.res_auto_active = false;
+                        res_settle_enter(&g_app, now);
+                    }
+                }
                 beep_once(30u);
                 changed = true;
             }
