@@ -1,5 +1,17 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.2.0-R1 RES Baseline + CONT v1
+- [ ] `T20-RES-BASE-01`: RES 回到 `T-1.1.12-R1` 可用基线（手动四档+AUTO 正常）。
+- [ ] `T20-RES-BASE-02`: `Rcalc/Rdisp` 无 `0HM/0L` 回归。
+- [ ] `T20-CONT-ENTER-01`: `RIGHT long` 可切入 `MODE_CONT`。
+- [ ] `T20-CONT-BEEP-01`: 仅 `MODE_CONT` 允许持续蜂鸣。
+- [ ] `T20-CONT-EXIT-01`: 离开 `MODE_CONT` 时蜂鸣器立即关闭。
+- [ ] `T20-CONT-SHORT-01`: 表笔短接可连续鸣叫。
+- [ ] `T20-CONT-OPEN-01`: 明显大于阈值不鸣叫。
+- [ ] `T20-CONT-HYS-01`: 阈值附近不来回抖（迟滞+投票生效）。
+- [ ] `T20-DBG-01`: Debug 页可见 `CONT_EST` 与 `BEEP` 诊断信息。
+- [ ] `T20-STABLE-01`: OLED 连续 5 分钟无黑屏/花屏，单写者不破坏。
+
 ## T-1.1.12-R1 RES AUTO Range
 - [ ] `A12-MANUAL-REG`: 手动四档（200/2K/20K/200K）无回归。
 - [ ] `A12-AUTO-ENTER`: 可进入 AUTO，页面稳定显示 `AUTO <locked_subrange>`。

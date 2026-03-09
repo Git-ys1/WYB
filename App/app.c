@@ -11,6 +11,7 @@
 #include "../Drivers/drv_opamp_internal.h"
 #include "../Measurements/measure_res.h"
 #include "../Measurements/measure_res_auto.h"
+#include "../Measurements/measure_cont.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
 #include "app_bootdiag.h"
@@ -76,6 +77,9 @@ struct app_ctx_s {
     res_display_text_t res_disp;
     res_auto_result_t res_auto;
     bool res_auto_active;
+
+    cont_ctx_t cont_ctx;
+    cont_result_t cont;
 
     uint32_t next_meas_ms;
     uint32_t next_ui_ms;
@@ -285,6 +289,19 @@ static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
     (void)now_ms;
 }
 
+static void measure_tick_cont(app_ctx_t *ctx, uint32_t now_ms)
+{
+    app_err_t err;
+
+    err = cont_step(&ctx->cont_ctx, now_ms, &ctx->cont);
+    if (err != ERR_OK) {
+        ctx->cont.beep_on = false;
+    }
+
+    beep_continuous(ctx->cont.beep_on);
+    ctx->ui_dirty = true;
+}
+
 static const mode_desc_t k_mode_desc[MODE_COUNT] = {
     [MODE_VDC] = {
         .title = "VDC",
@@ -308,7 +325,7 @@ static const mode_desc_t k_mode_desc[MODE_COUNT] = {
         .title = "CONT",
         .range_name_fn = range_name_cont,
         .range_next_fn = range_next_noop,
-        .measure_fn = measure_tick_noop
+        .measure_fn = measure_tick_cont
     },
     [MODE_DIODE] = {
         .title = "DIODE",
@@ -328,6 +345,8 @@ static const mode_desc_t *active_mode_desc(void)
 
 static void mode_next(void)
 {
+    app_mode_t prev = g_app.mode;
+
     switch (g_app.mode) {
     case MODE_RES:
         g_app.mode = MODE_VDC;
@@ -345,6 +364,13 @@ static void mode_next(void)
     default:
         g_app.mode = MODE_RES;
         break;
+    }
+
+    if ((prev == MODE_CONT) && (g_app.mode != MODE_CONT)) {
+        beep_continuous(false);
+    }
+    if ((prev != MODE_CONT) && (g_app.mode == MODE_CONT)) {
+        cont_reset(&g_app.cont_ctx);
     }
 }
 
@@ -394,7 +420,14 @@ static void build_main_frame(app_ui_frame_t *frame)
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "FUNC: %s", md->title);
-    if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
+    if (g_app.mode == MODE_CONT) {
+        if (!g_app.cont.sample_valid) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: PROBE...");
+        } else {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: %s",
+                           g_app.cont.beep_on ? "BEEP" : "OPEN");
+        }
+    } else if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         if (measure_res_range_is_exp(g_app.res_auto.locked_range_sel)) {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RANGE: AUTO %s EXP", locked);
@@ -418,6 +451,25 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(line, sizeof(line), "MV:---- RAW:----");
         }
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "%s", line);
+    } else if (g_app.mode == MODE_CONT) {
+        const char *state = cont_get_state_name(g_app.cont.state);
+        if (g_app.cont.calc_ok) {
+            if (g_app.cont.r_est_ohm < 1000.0f) {
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: %.1fOhm", g_app.cont.r_est_ohm);
+            } else {
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: %.2fk", g_app.cont.r_est_ohm / 1000.0f);
+            }
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: ----");
+        }
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s", state);
+        if (g_app.cont.sample_valid) {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:%lu RAW:%u",
+                           (unsigned long)g_app.cont.sample.mv,
+                           (unsigned)g_app.cont.sample.raw_u16);
+        } else {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:---- RAW:----");
+        }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
@@ -441,6 +493,8 @@ static void build_debug_frame(app_ui_frame_t *frame)
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "AUTO:%s MUX:%u",
                        locked, (unsigned)g_app.res_binding.mux_idx);
+    } else if (g_app.mode == MODE_CONT) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT FIXED:R200");
     } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
     } else {
@@ -471,6 +525,28 @@ static void build_debug_frame(app_ui_frame_t *frame)
                            g_app.res_disp.r_disp_str,
                            g_app.res_disp.stat_str);
         }
+    } else if (g_app.mode == MODE_CONT) {
+        if (g_app.cont.sample_valid) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.cont.sample.raw_u16);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.cont.sample.mv);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:%lu", (unsigned long)g_app.cont.sample.vdda_mv);
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:----");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :----");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VDDA:----");
+        }
+
+        if (g_app.cont.calc_ok) {
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "CONT_EST:%.1f", g_app.cont.r_est_ohm);
+        } else {
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "CONT_EST:----");
+        }
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "BEEP:%s V%u/%u",
+                       g_app.cont.beep_on ? "ON" : "OFF",
+                       (unsigned)g_app.cont.vote_enter,
+                       (unsigned)g_app.cont.vote_exit);
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "STAT:%s",
+                       cont_get_state_name(g_app.cont.state));
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -524,6 +600,10 @@ void app_init(void)
         res_afe_diag_reset(i);
     }
     measure_res_auto_reset();
+    cont_init(&g_app.cont_ctx);
+    memset(&g_app.cont, 0, sizeof(g_app.cont));
+    g_app.cont.state = CONT_STATE_OPEN;
+    g_app.cont.err = ERR_OK;
     g_app.res_auto_active = false;
     (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
     res_format_display(&g_app.res_binding, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
@@ -615,7 +695,7 @@ void app_ui_tick(void)
     app_display_poll();
 
     if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
-        if (g_app.mode != MODE_RES) {
+        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT)) {
             ui_update_debug_adc_sample();
         }
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;

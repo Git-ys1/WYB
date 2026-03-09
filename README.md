@@ -140,6 +140,17 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 最高档仍 OPEN：锁定 `200K`，显示 `OL`
   - 最低档仍 SHORT：锁定 `200`，显示 `SHORT`
 
+## T-1.2.0-R1 范围声明（RES止血 + CONT v1）
+- 本轮从 `58a2237 (T-1.1.12-R1)` 基线重开，RES 仅恢复到可用基线，不继续做 `T-1.1.13` polish。
+- 新增 `MODE_CONT` v1：
+  - 固定复用 RES 低档采样链（内部固定 `RES_RANGE_SEL_200`），不启 AUTO。
+  - 状态机：`OPEN -> BEEP_ON -> BEEP_OFF_WAIT`，带迟滞、连续投票和 settle。
+  - 默认阈值：`enter=10.0Ω`，`exit=13.0Ω`，`vote=3`，`settle=120ms`。
+- 蜂鸣器后端改为 active-buzzer 语义：
+  - 当前硬件为 **PNP 高边驱动**，`PB8` 低电平有效。
+  - `beep_continuous(true)` -> 响；`beep_continuous(false)` -> 停。
+  - 离开 `MODE_CONT` 必须立即关蜂鸣。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
