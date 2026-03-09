@@ -1,5 +1,14 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.1.13-R3 Hotfix (from 58a2237)
+- [ ] `R3-BASELINE-01`: 显示路径已恢复到 `58a2237` 基线（无 `0HM/0L/仅K` 回归）。
+- [ ] `R3-DISP-01`: `Rcalc` 正常且 `Rdisp` 与其同步，不再出现“公式正常但显示异常”。
+- [ ] `R3-LAT-01`: RES 中 `RIGHT` 短按后量程标题立即变化（无 1s 级迟滞）。
+- [ ] `R3-LAT-02`: `RIGHT` 长按仍切功能，且不补发短按动作。
+- [ ] `R3-AUTO-01`: AUTO 行为与 `T-1.1.12-R1` 保持一致，无策略回归。
+- [ ] `R3-DBG-01`: Debug 页继续可见 `RAW/MV/Rcalc/Rdisp`（含现有 `RREF/MUX`）。
+- [ ] `R3-STABLE-01`: 连续运行 5 分钟无黑屏/花屏，单写者不破坏。
+
 ## T-1.1.12-R1 RES AUTO Range
 - [ ] `A12-MANUAL-REG`: 手动四档（200/2K/20K/200K）无回归。
 - [ ] `A12-AUTO-ENTER`: 可进入 AUTO，页面稳定显示 `AUTO <locked_subrange>`。

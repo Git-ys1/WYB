@@ -140,6 +140,15 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 最高档仍 OPEN：锁定 `200K`，显示 `OL`
   - 最低档仍 SHORT：锁定 `200`，显示 `SHORT`
 
+## T-1.1.13-R3 Hotfix 口径（严格最小变更）
+- 基线固定：`58a2237 (T-1.1.12-R1)`。
+- 本轮只做两件事：
+  - 修复 RES 短按切量程迟滞（`RIGHT` 短按后立即触发 UI 与测量调度）。
+  - 保持 `Rcalc -> Rdisp` 显示链路为基线实现，不引入新 formatter / 新显示状态机。
+- 明确不做：
+  - 不改 `Rref_eff`、RES 公式、AUTO 判档策略。
+  - 不改 OLED/bootdiag/OPAMP-ADC 底层。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。

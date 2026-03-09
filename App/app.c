@@ -565,6 +565,9 @@ void app_poll_button(void)
                 changed = true;
             } else if (is_short_up_event(&evt, g_app.right_long_fired)) {
                 active_mode_desc()->range_next_fn(&g_app);
+                g_app.ui_dirty = true;
+                g_app.next_ui_ms = now;
+                g_app.next_meas_ms = now;
                 beep_once(30u);
                 changed = true;
             }
