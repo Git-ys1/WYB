@@ -158,6 +158,16 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `PB1=High` -> 静音
 - `bsp_init + beep_init` 均确保上电默认静音（高电平），避免启动期误鸣叫。
 
+## T-1.2.2-R1 CONT 体验收口
+- 只优化 CONT 响应速度与页面简化，不改 OLED/RES/AUTO 主逻辑。
+- CONT 参数收敛：
+  - `vote=2`
+  - `settle=40ms`
+  - 阈值保持 `enter=10Ω / exit=13Ω`
+- CONT 测量节拍独立提速到 `25ms`（其他模式保持 `40ms`）。
+- CONT 正式页不再显示 `R` 数值，仅显示 `PROBE/BEEP/OPEN` 与状态。
+- 进入 Debug 且当前为 CONT 时立即静音；离开 CONT 继续保持立即静音。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。

@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.2.2-R1 CONT UX Tuning
+- [ ] `C22-ENTER-150MS`: CONT 下短接后 `<=150ms` 内进入连续鸣叫。
+- [ ] `C22-EXIT-150MS`: CONT 下松开后 `<=150ms` 内停止鸣叫。
+- [ ] `C22-VIEW-MUTE`: CONT -> Debug（LEFT短按）立即静音。
+- [ ] `C22-MODE-MUTE`: CONT -> 其他功能（RIGHT长按）立即静音。
+- [ ] `C22-UI-NO-R`: CONT 正式页不显示 `R:` 数值，仅保留状态文案。
+- [ ] `C22-DEBUG-KEEP`: Debug 页继续显示 `CONT_EST/BEEP/RAW/MV/VDDA`。
+- [ ] `C22-NONCONT-NOBEEP`: 非 CONT 模式按键切页不会导致持续鸣叫。
+- [ ] `C22-STABLE-5MIN`: 5 分钟运行无黑屏/花屏。
+
 ## T-1.2.1-R1 Buzzer PB1 Hotfix
 - [ ] `T21-BOOT-01`: 蜂鸣器完整接线后冷上电可正常启动，OLED 不黑屏。
 - [ ] `T21-MUTE-01`: 上电默认静音（无瞬时误叫）。

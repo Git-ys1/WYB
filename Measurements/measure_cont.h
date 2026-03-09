@@ -36,8 +36,8 @@ typedef struct {
 
 #define CONT_ENTER_EST_OHM 10.0f
 #define CONT_EXIT_EST_OHM 13.0f
-#define CONT_VOTE_N 3u
-#define CONT_SETTLE_MS 120u
+#define CONT_VOTE_N 2u
+#define CONT_SETTLE_MS 40u
 
 static inline void cont_reset(cont_ctx_t *ctx)
 {

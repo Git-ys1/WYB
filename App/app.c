@@ -22,6 +22,7 @@
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
+#define CONT_MEAS_PERIOD_MS 25u
 #define BEEP_FREQ_HZ 2700u
 
 #define KEY_SHORT_MIN_MS 15u
@@ -298,7 +299,12 @@ static void measure_tick_cont(app_ctx_t *ctx, uint32_t now_ms)
         ctx->cont.beep_on = false;
     }
 
-    beep_continuous(ctx->cont.beep_on);
+    if (ctx->view == VIEW_RUN_DEBUG) {
+        /* Hard rule: debug view must silence continuous buzzer in CONT mode. */
+        beep_continuous(false);
+    } else {
+        beep_continuous(ctx->cont.beep_on);
+    }
     ctx->ui_dirty = true;
 }
 
@@ -376,7 +382,13 @@ static void mode_next(void)
 
 static void toggle_debug_view(void)
 {
-    g_app.view = (g_app.view == VIEW_RUN_MAIN) ? VIEW_RUN_DEBUG : VIEW_RUN_MAIN;
+    app_view_t next_view = (g_app.view == VIEW_RUN_MAIN) ? VIEW_RUN_DEBUG : VIEW_RUN_MAIN;
+
+    if ((g_app.mode == MODE_CONT) && (next_view == VIEW_RUN_DEBUG)) {
+        /* Hard rule: entering debug from CONT should mute immediately. */
+        beep_continuous(false);
+    }
+    g_app.view = next_view;
 }
 
 static bool is_short_up_event(const key_event_t *evt, bool long_fired)
@@ -453,23 +465,13 @@ static void build_main_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[4], sizeof(frame->line[4]), "%s", line);
     } else if (g_app.mode == MODE_CONT) {
         const char *state = cont_get_state_name(g_app.cont.state);
-        if (g_app.cont.calc_ok) {
-            if (g_app.cont.r_est_ohm < 1000.0f) {
-                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: %.1fOhm", g_app.cont.r_est_ohm);
-            } else {
-                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: %.2fk", g_app.cont.r_est_ohm / 1000.0f);
-            }
+        if (!g_app.cont.sample_valid) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "STAT: PROBE");
         } else {
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "R: ----");
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "STAT: %s", state);
         }
-        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s", state);
-        if (g_app.cont.sample_valid) {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:%lu RAW:%u",
-                           (unsigned long)g_app.cont.sample.mv,
-                           (unsigned)g_app.cont.sample.raw_u16);
-        } else {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:---- RAW:----");
-        }
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "BEEP: %s", g_app.cont.beep_on ? "ON" : "OFF");
+        (void)snprintf(frame->line[4], sizeof(frame->line[4]), "CONT MODE");
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
@@ -677,11 +679,12 @@ void app_poll_button(void)
 void app_measure_tick(void)
 {
     uint32_t now = bsp_millis();
+    uint32_t period_ms = (g_app.mode == MODE_CONT) ? CONT_MEAS_PERIOD_MS : MEAS_PERIOD_MS;
 
     if ((int32_t)(now - g_app.next_meas_ms) < 0) {
         return;
     }
-    g_app.next_meas_ms = now + MEAS_PERIOD_MS;
+    g_app.next_meas_ms = now + period_ms;
 
     active_mode_desc()->measure_fn(&g_app, now);
 }
