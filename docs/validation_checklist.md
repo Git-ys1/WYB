@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.4.0-R1 VDC Dual Range
+- [ ] `V40-00`: `VDC_RED->GND, VDC_COM->GND` 时，`2000mV` 档接近 `0mV`，`20V` 档接近 `0.00V`。
+- [ ] `V40-15`: `VDC_RED->1.5V` 时，`2000mV` 档约 `1500mV`，`20V` 档约 `1.50V`。
+- [ ] `V40-33`: `VDC_RED->3.3V` 时，`2000mV` 档显示 `OL`，`20V` 档约 `3.30V`。
+- [ ] `V40-50`: `VDC_RED->5V` 时，`20V` 档约 `5.00V`。
+- [ ] `V40-SWITCH`: 来回切 `2000mV/20V` 后，1~2 个周期内稳定，无长时间卡值。
+- [ ] `V40-SAFE`: ADC 失败、VDDA 异常、输入抖动时仅显示 `OL/ERR`，系统不崩溃。
+- [ ] `V40-REG`: RES/CONT/DIODE 行为无回归，PB1 蜂鸣器逻辑不受影响。
+- [ ] `V40-STABLE-5MIN`: OLED 连续 5 分钟无黑屏/花屏。
+
 ## T-1.3.1-R1 DIODE Plan-A
 - [ ] `D31-FWD-4148`: 1N4148 正向，显示 `A=RED K=BLK`，`Vf≈0.5~0.8V`，`STAT:OK`。
 - [ ] `D31-REV-4148`: 1N4148 反接，显示 `OL` + `REV/OPEN`。

@@ -60,7 +60,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `AFE_OK=0`：`R: ----`, `STAT: AFE BAD`
   - `AFE_OK=1`：按 3.5 位格式显示电阻
 - 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
-- `VDC/FREQ` 仍为 READY 占位；`CONT` 与 `DIODE` 已进入正式测量页。
+- `VDC/RES/CONT/DIODE` 已进入正式测量页；`FREQ` 仍为 READY 占位。
 - RES 当前使用 OPAMP1 内部跟随器采样链路（`PA1 -> OPAMP1 -> ADC VOPAMP1`），不再走 TL072->PC0 正式路径。
 - 片内 ADC 驱动：
   - `adc1_init`
@@ -179,6 +179,20 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `mv > 0.95*VDDA` -> `OL / REV-OPEN`
   - 其余 -> `OK`，显示 `A=RED K=BLK` 与 `Vf=x.xxxV`
 - 离开 DIODE 模式时 `PB0` 立即回高阻，避免激励在其它模式误保持。
+
+## T-1.4.0-R1 VDC 双量程（独立表笔）
+- 本轮新增 `MODE_VDC` 正式测量，覆盖 `0~+19.99V` 正向直流。
+- 硬件路径固定为第二对表笔独立输入：
+  - `VDC_RED -> VIN_VDC`
+  - `VDC_COM -> GND`
+  - 最终采样链路：`PA1(OPAMP1 follower) -> ADC1(VOPAMP1)`
+- 量程与换算：
+  - `2000mV`：`vin_mv = mv_sense + off_2v`（当前 `off_2v=0`）
+  - `20V`：`vin_mv = (mv_sense * 800 + 60) / 120 + off_20v`（当前 `off_20v=0`）
+- VDC 切档继续复用 `PB13/PB14` 与 `mux_set_volt_range()`，并在切档后执行路径切换标记：
+  - `adc1_mark_input_path_changed()`
+  - `VDC_SETTLE_MS=1`
+- 当前口径不做负压精确显示，仅保证负向误接时系统不崩溃（显示 `ERR/OL/0` 中稳定状态之一）。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
