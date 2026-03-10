@@ -25,6 +25,8 @@
 #define MEAS_PERIOD_MS 40u
 #define CONT_MEAS_PERIOD_MS 25u
 #define BEEP_FREQ_HZ 2700u
+#define DIODE_VF_DIRTY_DELTA_MV 8u
+#define DIODE_RAW_DIRTY_DELTA 16u
 
 #define KEY_SHORT_MIN_MS 15u
 
@@ -83,7 +85,7 @@ struct app_ctx_s {
     cont_ctx_t cont_ctx;
     cont_result_t cont;
     diode_ctx_t diode_ctx;
-    diode_result_t diode;
+    diode_latched_result_t diode;
 
     uint32_t next_meas_ms;
     uint32_t next_ui_ms;
@@ -295,15 +297,51 @@ static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
 
 static void measure_tick_diode(app_ctx_t *ctx, uint32_t now_ms)
 {
+    diode_result_t step_out;
+    diode_latched_result_t prev;
+    uint32_t vf_delta;
+    uint16_t raw_delta;
     app_err_t err;
 
-    err = diode_step(&ctx->diode_ctx, now_ms, &ctx->diode);
+    prev = ctx->diode;
+
+    err = diode_step(&ctx->diode_ctx, now_ms, &step_out);
     if (err != ERR_OK) {
         ctx->diode.valid = false;
         ctx->diode.err = err;
         ctx->diode.stat = DIODE_STAT_ERR;
+        ctx->ui_dirty = true;
+        return;
     }
-    ctx->ui_dirty = true;
+
+    err = diode_get_latched_result(&ctx->diode_ctx, &ctx->diode);
+    if (err != ERR_OK) {
+        return;
+    }
+
+    if ((prev.stat != ctx->diode.stat) ||
+        (prev.valid != ctx->diode.valid) ||
+        (prev.err != ctx->diode.err)) {
+        ctx->ui_dirty = true;
+        return;
+    }
+
+    if (ctx->diode.stat == DIODE_STAT_OK) {
+        vf_delta = (ctx->diode.vf_mv >= prev.vf_mv) ? (ctx->diode.vf_mv - prev.vf_mv) : (prev.vf_mv - ctx->diode.vf_mv);
+        if (vf_delta >= DIODE_VF_DIRTY_DELTA_MV) {
+            ctx->ui_dirty = true;
+            return;
+        }
+    }
+
+    if (ctx->diode.valid) {
+        raw_delta = (ctx->diode.raw_u16 >= prev.raw_u16)
+            ? (uint16_t)(ctx->diode.raw_u16 - prev.raw_u16)
+            : (uint16_t)(prev.raw_u16 - ctx->diode.raw_u16);
+        if (raw_delta >= DIODE_RAW_DIRTY_DELTA) {
+            ctx->ui_dirty = true;
+        }
+    }
 }
 
 static void measure_tick_cont(app_ctx_t *ctx, uint32_t now_ms)
@@ -461,6 +499,8 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "REV/OPEN");
         } else if (g_app.diode.stat == DIODE_STAT_SHORT) {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "SHORT");
+        } else if (g_app.diode.stat == DIODE_STAT_ERR) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MEAS ERR");
         } else {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "PROBE...");
         }
@@ -513,6 +553,8 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OL");
         } else if (g_app.diode.stat == DIODE_STAT_SHORT) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "0.000V");
+        } else if (g_app.diode.stat == DIODE_STAT_ERR) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ERR");
         } else {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "Vf=----");
         }
