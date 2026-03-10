@@ -52,7 +52,8 @@ static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
         .param = {.enabled = true, .exp_range = false, .rref_nom_ohm = 1000000.0f, .rref_eff_ohm = 1000000.0f, .gain_corr = 1.0f}
     }
 };
-static uint8_t s_last_range_sel = 0xFFu;
+static uint8_t s_last_mode_phys_ch = 0xFFu;
+static uint8_t s_last_res_mux_range = 0xFFu;
 
 static void sample_reset(res_sample_t *out)
 {
@@ -129,6 +130,8 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
     uint32_t vdda_mv = 3300u;
     const range_cfg_t *cfg;
     bool path_changed;
+    uint8_t curr_mode_phys;
+    uint8_t curr_res_mux_range;
 
     if ((s == NULL) || (range_sel >= RES_RANGE_SEL_COUNT)) {
         return ERR_INVALID_ARG;
@@ -146,13 +149,17 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
         return s->err;
     }
 
-    path_changed = (s_last_range_sel != range_sel);
     mux_set_mode(MUX_MODE_RES);
     mux_set_res_range(cfg->mux_range);
+    curr_mode_phys = mux_get_mode_phys_ch();
+    curr_res_mux_range = (uint8_t)cfg->mux_range;
+    path_changed = (s_last_mode_phys_ch != curr_mode_phys) ||
+                   (s_last_res_mux_range != curr_res_mux_range);
     if (path_changed) {
         adc1_mark_input_path_changed();
-        s_last_range_sel = range_sel;
     }
+    s_last_mode_phys_ch = curr_mode_phys;
+    s_last_res_mux_range = curr_res_mux_range;
 
     err = adc1_read_opamp1_filtered(&s->raw_u16, &s->mv);
     if (err != ERR_OK) {

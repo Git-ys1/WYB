@@ -196,6 +196,16 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `20V`：`vin_mv = (mv_sense * 800 + 60) / 120 + off_20v`（`off_20v=0`）
 - VDC 异常只显示页面状态（`OL/ERR/MUX BAD/ADC BAD`），不得触发 `Error_Handler` 或 bootdiag fault。
 
+## T-1.4.3-R1 路径管理热修（RES 先恢复，再诊断 VDC）
+- 本轮只修路径管理，不改 RES 常量表/公式，不改 20V 换算公式。
+- RES 采样路径切换判定升级为“物理模式通道 + 电阻子量程”联合判定：
+  - 只要 `mode_phys_ch` 或 `res_mux_range` 任一变化，就执行 `adc1_mark_input_path_changed()`。
+  - 解决从 `VDC(CH0)` 切回 `RES(CH1)` 时档位不变但路径已变的问题。
+- VDC 诊断增强：
+  - Debug 页固定显示 `MODE_PHYS / VOLT_PHYS / RAW / SENSE_mV / VIN_mV / VDDA / STAT`。
+  - 增加临时诊断宏 `VDC_SWAP_U11_AB`（默认 `0`，仅用于一次编译验证 U11 通道顺序）。
+- VDC 异常处理口径保持不变：仅页面状态化（`OK/OL/MUX BAD/ADC BAD/ERR`），不进入 `Error_Handler`/boot fault。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。

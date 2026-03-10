@@ -28,6 +28,14 @@ typedef enum {
     MUX_VOLT_COUNT
 } mux_volt_range_t;
 
+/* T-1.4.3-R1 diagnostics only:
+ * 0 = default mapping (2000mV->CH0, 20V->CH1)
+ * 1 = swapped mapping (2000mV->CH1, 20V->CH0)
+ */
+#ifndef VDC_SWAP_U11_AB
+#define VDC_SWAP_U11_AB 0
+#endif
+
 void mux_init(void);
 void mux_set_res_range(mux_res_range_t range);
 void mux_set_mode(mux_mode_channel_t mode);

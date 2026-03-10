@@ -28,13 +28,21 @@ static uint8_t mode_to_phys_ch(mux_mode_channel_t mode)
 
 static uint8_t volt_to_phys_ch(mux_volt_range_t range)
 {
+    uint8_t ch_2000 = 0u;
+    uint8_t ch_20 = 1u;
+
     /* T-1.4.2-R1 hardware freeze:
      * U11 (VOLT_RANGE_MUX): CH0=2000mV, CH1=20V.
      */
+#if VDC_SWAP_U11_AB
+    ch_2000 = 1u;
+    ch_20 = 0u;
+#endif
+
     if (range == MUX_VOLT_20V) {
-        return 1u;
+        return ch_20;
     }
-    return 0u;
+    return ch_2000;
 }
 
 void mux_init(void)

@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.4.3-R1 Path Management Hotfix
+- [ ] `V43-RES-FIRST-01`: 先验 RES 回归（2K测1K 不再 `Rcalc≈3800`，`Rdisp` 不再 `0L`）。
+- [ ] `V43-RES-FIRST-02`: CONT / DIODE 行为不回归。
+- [ ] `V43-VDC-2V-01`: 1.2V 输入时，2000mV 档维持可用量级（约 `1128~1200mV`）。
+- [ ] `V43-VDC-DIAG-01`: VDC Debug 同屏可见 `MODE_PHYS / VOLT_PHYS / RAW / SENSE_mV / VIN_mV / VDDA / STAT`。
+- [ ] `V43-VDC-20V-01`: 对 `1.2V / 5.0V / 8.0V` 三点记录 `SENSE_mV` 与 `VIN_mV`，可区分“前端映射问题”与“换算问题”。
+- [ ] `V43-VDC-SWAP-01`: `VDC_SWAP_U11_AB` 仅用于诊断验证（默认 `0`），不作为长期补偿。
+- [ ] `V43-SAFE-01`: 长驻 VDC 页面不死机、按键可用、PB12 不进入 fault 闪码。
+- [ ] `V43-SAFE-02`: VDC 异常只显示 `OK/OL/MUX BAD/ADC BAD/ERR`，不进 `Error_Handler`。
+
 ## T-1.4.2-R1 U11+U9 VDC Re-bringup
 - [ ] `V42-HW-00`: PA1 仅连接 U9 pin3，U11/U9 供电正常，VDC_RED 空载对地无异常上拉。
 - [ ] `V42-U11-12`: 输入 1.2V 时，2000mV 档 U11 pin3 约 1.2V，20V 档 U11 pin3 约 0.18V。
