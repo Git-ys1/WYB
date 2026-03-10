@@ -73,11 +73,6 @@ static inline const char *vdc_status_name(vdc_status_t status)
     }
 }
 
-static inline uint8_t vdc_expected_mode_ch(void)
-{
-    return 0u;
-}
-
 static inline uint8_t vdc_expected_volt_ch(vdc_range_t range)
 {
     return (range == VDC_RANGE_20V) ? 1u : 0u;
@@ -90,8 +85,7 @@ static inline mux_volt_range_t vdc_to_mux_range(vdc_range_t range)
 
 static inline bool vdc_path_ok(vdc_range_t range)
 {
-    return (mux_get_mode_phys_ch() == vdc_expected_mode_ch()) &&
-           (mux_get_volt_phys_ch() == vdc_expected_volt_ch(range));
+    return (mux_get_volt_phys_ch() == vdc_expected_volt_ch(range));
 }
 
 static inline uint32_t vdc_convert_mv(vdc_range_t range, uint32_t mv_sense)
@@ -126,7 +120,6 @@ static inline void vdc_set_result(vdc_ctx_t *ctx,
 
 static inline void vdc_apply_range(vdc_ctx_t *ctx, uint32_t now_ms)
 {
-    mux_set_mode(MUX_MODE_VOLTAGE);
     mux_set_volt_range(vdc_to_mux_range(ctx->range));
     adc1_mark_input_path_changed();
 
@@ -235,7 +228,7 @@ static inline app_err_t vdc_tick(vdc_ctx_t *ctx, uint32_t now_ms)
         return ERR_OK;
     }
 
-    err = adc1_read_opamp1_filtered(&raw, &mv_sense);
+    err = adc1_read_filtered(&raw, &mv_sense);
     if (err != ERR_OK) {
         vdc_set_result(ctx, now_ms, VDC_STAT_ADC_BAD, err, false);
         return ERR_OK;

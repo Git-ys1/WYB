@@ -1,5 +1,14 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.4.4-R1 VDC Split Hotfix (PC0 path)
+- [ ] `V44-RES-FIRST-01`: 先验 RES 回归（2K测1K 量级恢复，`Rdisp` 不再 `0L`）。
+- [ ] `V44-RES-FIRST-02`: CONT / DIODE 行为不回归。
+- [ ] `V44-VDC-2V-01`: 1.2V 输入时，2000mV 档显示稳定在 1.2V 量级。
+- [ ] `V44-VDC-DBG-01`: VDC Debug 可见 `VOLT_CH / RAW / SENSE_MV / VIN_MV / VDDA / STAT`。
+- [ ] `V44-VDC-20V-01`: 2.0V/4.5V/6.0V/8.0V 三点记录 `SENSE_MV` 与 `VIN_MV`，用于区分硬件/换算问题。
+- [ ] `V44-VDC-LONG-01`: 长驻 VDC 页面不死机、按键可用、PB12 不进入 fault 闪码。
+- [ ] `V44-SAFE-01`: VDC 异常只显示 `OK/OL/ADC BAD/ERR`（兼容 `MUX BAD`），不进 `Error_Handler`。
+
 ## T-1.4.2-R1 U11+U9 VDC Re-bringup
 - [ ] `V42-HW-00`: PA1 仅连接 U9 pin3，U11/U9 供电正常，VDC_RED 空载对地无异常上拉。
 - [ ] `V42-U11-12`: 输入 1.2V 时，2000mV 档 U11 pin3 约 1.2V，20V 档 U11 pin3 约 0.18V。

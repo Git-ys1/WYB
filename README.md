@@ -196,6 +196,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `20V`：`vin_mv = (mv_sense * 800 + 60) / 120 + off_20v`（`off_20v=0`）
 - VDC 异常只显示页面状态（`OL/ERR/MUX BAD/ADC BAD`），不得触发 `Error_Handler` 或 bootdiag fault。
 
+## T-1.4.4-R1 VDC 路径拆分热修（PA1 回归 RES，VDC 改走 PC0）
+- 本轮目标是先恢复 RES/CONT/DIODE 的 PA1 正式链稳定性，再把 VDC 从 PA1/U9 共享链剥离。
+- 路径冻结：
+  - `RES/CONT/DIODE`：继续 `PA1 -> OPAMP1 -> ADC1(VOPAMP1)`。
+  - `VDC`：改为 `PC0(ADC12_IN6)` 采样，`U11` 仅负责 `2000mV/20V` 量程选择。
+  - `U9` 本轮不参与 VDC 正常路径。
+- VDC 软件口径：
+  - 采样接口使用 `adc1_read_filtered()`（PC0）。
+  - 保留 `adc1_mark_input_path_changed()` 与现有换算公式，不做 20V 补偿改动。
+  - `vdc_path_ok()` 仅校验 `VOLT_CH`，不再依赖 `MODE_CH`。
+- VDC 异常继续页面化显示（`OK/OL/ADC BAD/ERR`，兼容 `MUX BAD`），不得触发 `Error_Handler` / bootdiag fault。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。

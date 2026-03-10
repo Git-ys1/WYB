@@ -732,18 +732,17 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
                        (unsigned)g_app.diode.err);
     } else if (g_app.mode == MODE_VDC) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u",
-                       (unsigned)mux_get_mode_phys_ch(),
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "VOLT_CH:%u",
                        (unsigned)mux_get_volt_phys_ch());
         if (g_app.vdc.valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.vdc.raw);
-            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.vdc.mv_sense);
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:%lu", (unsigned long)g_app.vdc.vin_mv);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "SENSE_MV:%lu", (unsigned long)g_app.vdc.mv_sense);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN_MV:%lu", (unsigned long)g_app.vdc.vin_mv);
             (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:%lu", (unsigned long)g_app.vdc.vdda_mv);
         } else {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:----");
-            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :----");
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:----");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "SENSE_MV:----");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN_MV:----");
             (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:----");
         }
         (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s", vdc_status_name(g_app.vdc.status));
