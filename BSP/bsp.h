@@ -36,10 +36,21 @@ typedef enum {
 } bsp_pwm_t;
 
 typedef struct {
-    uint32_t period_us;
-    uint32_t high_us;
+    uint32_t period_ticks;
+    uint32_t high_ticks;
+    uint32_t tim_clk_hz;
+    uint32_t last_capture_ms;
     bool valid;
 } bsp_capture_t;
+
+typedef enum {
+    BSP_FREQ_PROFILE_20HZ = 0,
+    BSP_FREQ_PROFILE_200HZ,
+    BSP_FREQ_PROFILE_2KHZ,
+    BSP_FREQ_PROFILE_20KHZ,
+    BSP_FREQ_PROFILE_200KHZ,
+    BSP_FREQ_PROFILE_COUNT
+} bsp_freq_profile_t;
 
 void bsp_init(void);
 uint32_t bsp_millis(void);
@@ -63,6 +74,7 @@ void bsp_pwm_stop(bsp_pwm_t pwm);
 
 bool bsp_freq_get_capture(bsp_capture_t *capture);
 void bsp_freq_capture_start(void);
+void bsp_freq_capture_set_profile(bsp_freq_profile_t profile);
 
 void bsp_debug_log(const char *msg);
 

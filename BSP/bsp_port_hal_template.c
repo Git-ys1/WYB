@@ -34,8 +34,6 @@ static const pin_desc_t k_pin_desc[BSP_PIN_COUNT] = {
 
 static volatile uint32_t g_cap_period_ticks;
 static volatile uint32_t g_cap_high_ticks;
-static volatile uint8_t g_cap_have_period;
-static volatile uint8_t g_cap_have_high;
 static volatile uint8_t g_cap_valid;
 static volatile uint32_t g_cap_last_ms;
 static volatile uint32_t g_key_edge_ms;
@@ -56,12 +54,28 @@ static sw_pwm_t g_sw_pwm;
 static bsp_oled_bus_mode_t g_oled_bus_mode;
 static uint32_t g_oled_nack_count;
 static uint32_t g_oled_timeout_count;
+static bsp_freq_profile_t g_freq_profile;
 
 #define I2C2_TIMING_100KHZ_16MHZ 0x20303E5Du
 #define I2C2_TIMING_400KHZ_16MHZ 0x0010061Au
 #define I2C2_RECOVERY_PULSES 9u
 #define I2C2_RECOVERY_DELAY_NOP 64u
 #define SOFT_I2C_DELAY_NOP 96u
+#define FREQ_CAPTURE_TIMEOUT_MS 500u
+#define FREQ_SWAP_CCR_MAP 0
+
+typedef struct {
+    uint32_t ic_prescaler;
+    uint32_t ic_filter;
+} freq_profile_cfg_t;
+
+static const freq_profile_cfg_t k_freq_profile_cfg[BSP_FREQ_PROFILE_COUNT] = {
+    [BSP_FREQ_PROFILE_20HZ] = {TIM_ICPSC_DIV1, 8u},
+    [BSP_FREQ_PROFILE_200HZ] = {TIM_ICPSC_DIV1, 4u},
+    [BSP_FREQ_PROFILE_2KHZ] = {TIM_ICPSC_DIV1, 1u},
+    [BSP_FREQ_PROFILE_20KHZ] = {TIM_ICPSC_DIV1, 0u},
+    [BSP_FREQ_PROFILE_200KHZ] = {TIM_ICPSC_DIV1, 0u}
+};
 
 static I2C_HandleTypeDef *i2c_handle_from_bus(bsp_i2c_bus_t bus)
 {
@@ -137,6 +151,99 @@ static uint32_t tim2_clock_hz(void)
         return pclk1;
     }
     return pclk1 * 2u;
+}
+
+static uint32_t cap_period_from_ccr(uint32_t ccr1, uint32_t ccr2)
+{
+#if FREQ_SWAP_CCR_MAP
+    return ccr2;
+#else
+    return ccr1;
+#endif
+}
+
+static uint32_t cap_high_from_ccr(uint32_t ccr1, uint32_t ccr2)
+{
+#if FREQ_SWAP_CCR_MAP
+    return ccr1;
+#else
+    return ccr2;
+#endif
+}
+
+static void tim2_capture_reset_snapshot(void)
+{
+    __disable_irq();
+    g_cap_period_ticks = 0u;
+    g_cap_high_ticks = 0u;
+    g_cap_valid = 0u;
+    g_cap_last_ms = HAL_GetTick();
+    __enable_irq();
+}
+
+static void tim2_capture_stop(void)
+{
+    (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
+    (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_2);
+    g_cap_started = 0u;
+}
+
+static bool tim2_capture_start(void)
+{
+    if (g_cap_started) {
+        return true;
+    }
+
+    tim2_capture_reset_snapshot();
+
+    if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1) != HAL_OK) {
+        return false;
+    }
+    if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2) != HAL_OK) {
+        (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
+        return false;
+    }
+
+    g_cap_started = 1u;
+    return true;
+}
+
+static bool tim2_capture_apply_profile(bsp_freq_profile_t profile)
+{
+    TIM_IC_InitTypeDef ic = {0};
+    uint32_t idx = (uint32_t)profile;
+    bool restart = (g_cap_started != 0u);
+
+    if (idx >= (uint32_t)BSP_FREQ_PROFILE_COUNT) {
+        idx = (uint32_t)BSP_FREQ_PROFILE_20HZ;
+    }
+
+    if (restart) {
+        tim2_capture_stop();
+    }
+
+    ic.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+    ic.ICSelection = TIM_ICSELECTION_DIRECTTI;
+    ic.ICPrescaler = k_freq_profile_cfg[idx].ic_prescaler;
+    ic.ICFilter = k_freq_profile_cfg[idx].ic_filter;
+    if (HAL_TIM_IC_ConfigChannel(&htim2, &ic, TIM_CHANNEL_1) != HAL_OK) {
+        return false;
+    }
+
+    ic.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+    ic.ICSelection = TIM_ICSELECTION_INDIRECTTI;
+    if (HAL_TIM_IC_ConfigChannel(&htim2, &ic, TIM_CHANNEL_2) != HAL_OK) {
+        return false;
+    }
+
+    g_freq_profile = (bsp_freq_profile_t)idx;
+    tim2_capture_reset_snapshot();
+
+    if (restart && !tim2_capture_start()) {
+        return false;
+    }
+
+    return true;
 }
 
 static bool i2c_retime_and_init(I2C_HandleTypeDef *hi2c, uint32_t timing)
@@ -355,12 +462,11 @@ void bsp_init(void)
 {
     g_cap_period_ticks = 0u;
     g_cap_high_ticks = 0u;
-    g_cap_have_period = 0u;
-    g_cap_have_high = 0u;
     g_cap_valid = 0u;
     g_cap_last_ms = 0u;
     g_key_edge_ms = 0u;
     g_cap_started = 0u;
+    g_freq_profile = BSP_FREQ_PROFILE_20HZ;
 
     g_pwm_hw_active = 0u;
     g_sw_pwm.enabled = 0u;
@@ -377,6 +483,7 @@ void bsp_init(void)
     if (g_tim2_tick_hz == 0u) {
         g_tim2_tick_hz = 1u;
     }
+    (void)tim2_capture_apply_profile(g_freq_profile);
 
 #if BSP_I2C2_FAST_400K
     if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_400KHZ_16MHZ)) {
@@ -615,8 +722,6 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
     uint32_t high_ticks;
     uint8_t valid;
     uint32_t last_ms;
-    uint64_t period_us;
-    uint64_t high_us;
 
     if (capture == 0) {
         return false;
@@ -633,38 +738,36 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
         return false;
     }
 
-    if ((HAL_GetTick() - last_ms) > 500u) {
+    if ((HAL_GetTick() - last_ms) > FREQ_CAPTURE_TIMEOUT_MS) {
         return false;
     }
 
-    period_us = ((uint64_t)period_ticks * 1000000ull + (uint64_t)(g_tim2_tick_hz / 2u)) / (uint64_t)g_tim2_tick_hz;
-    high_us = ((uint64_t)high_ticks * 1000000ull + (uint64_t)(g_tim2_tick_hz / 2u)) / (uint64_t)g_tim2_tick_hz;
-
-    if ((period_us == 0ull) || (high_us > period_us)) {
+    if ((period_ticks == 0u) || (high_ticks > period_ticks)) {
         return false;
     }
 
-    capture->period_us = (uint32_t)period_us;
-    capture->high_us = (uint32_t)high_us;
+    capture->period_ticks = period_ticks;
+    capture->high_ticks = high_ticks;
+    capture->tim_clk_hz = g_tim2_tick_hz;
+    capture->last_capture_ms = last_ms;
     capture->valid = true;
     return true;
 }
 
 void bsp_freq_capture_start(void)
 {
-    if (g_cap_started) {
-        return;
-    }
+    (void)tim2_capture_start();
+}
 
-    if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1) != HAL_OK) {
+void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
+{
+    if ((uint32_t)profile >= (uint32_t)BSP_FREQ_PROFILE_COUNT) {
+        profile = BSP_FREQ_PROFILE_20HZ;
+    }
+    if ((profile == g_freq_profile) && g_cap_started) {
         return;
     }
-    if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2) != HAL_OK) {
-        (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
-        return;
-    }
-
-    g_cap_started = 1u;
+    (void)tim2_capture_apply_profile(profile);
 }
 
 void bsp_debug_log(const char *msg)
@@ -674,28 +777,32 @@ void bsp_debug_log(const char *msg)
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-    uint32_t cap;
+    uint32_t ccr1;
+    uint32_t ccr2;
+    uint32_t period_ticks;
+    uint32_t high_ticks;
 
     if ((htim == 0) || (htim->Instance != TIM2)) {
         return;
     }
 
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-        cap = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-        if (cap > 0u) {
-            g_cap_period_ticks = cap;
-            g_cap_have_period = 1u;
-        }
-    } else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-        cap = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-        g_cap_high_ticks = cap;
-        g_cap_have_high = 1u;
+    if ((htim->Channel != HAL_TIM_ACTIVE_CHANNEL_1) &&
+        (htim->Channel != HAL_TIM_ACTIVE_CHANNEL_2)) {
+        return;
     }
 
-    if (g_cap_have_period && g_cap_have_high && (g_cap_period_ticks > 0u) && (g_cap_high_ticks <= g_cap_period_ticks)) {
+    ccr1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+    ccr2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+    period_ticks = cap_period_from_ccr(ccr1, ccr2);
+    high_ticks = cap_high_from_ccr(ccr1, ccr2);
+
+    g_cap_period_ticks = period_ticks;
+    g_cap_high_ticks = high_ticks;
+
+    if ((period_ticks > 0u) && (high_ticks <= period_ticks)) {
         g_cap_valid = 1u;
         g_cap_last_ms = HAL_GetTick();
-    } else if (g_cap_high_ticks > g_cap_period_ticks) {
+    } else {
         g_cap_valid = 0u;
     }
 }

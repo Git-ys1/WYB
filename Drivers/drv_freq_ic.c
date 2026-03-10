@@ -5,11 +5,13 @@
 #include "../BSP/bsp.h"
 
 #define FREQ_HIST_SIZE 8u
+#define FREQ_INVALID_LIMIT 5u
 
 static float g_hz_hist[FREQ_HIST_SIZE];
 static float g_duty_hist[FREQ_HIST_SIZE];
 static uint8_t g_hist_w;
 static uint8_t g_hist_count;
+static uint8_t g_invalid_count;
 
 static void hist_push(float hz, float duty)
 {
@@ -65,6 +67,8 @@ void freq_start(void)
 {
     g_hist_w = 0u;
     g_hist_count = 0u;
+    g_invalid_count = 0u;
+    bsp_freq_capture_start();
 }
 
 app_err_t freq_get(float *hz, float *duty_pct)
@@ -78,12 +82,22 @@ app_err_t freq_get(float *hz, float *duty_pct)
         return ERR_INVALID_ARG;
     }
 
-    if (!bsp_freq_get_capture(&cap) || !cap.valid || (cap.period_us == 0u)) {
+    if (!bsp_freq_get_capture(&cap) || !cap.valid || (cap.period_ticks == 0u) ||
+        (cap.tim_clk_hz == 0u) || (cap.high_ticks > cap.period_ticks)) {
+        if (g_invalid_count < 0xFFu) {
+            g_invalid_count++;
+        }
+        if ((g_invalid_count < FREQ_INVALID_LIMIT) && (g_hist_count > 0u)) {
+            hist_average(FREQ_HIST_SIZE, hz, duty_pct);
+            return ERR_OK;
+        }
         return ERR_NO_SIGNAL;
     }
 
-    inst_hz = 1000000.0f / (float)cap.period_us;
-    inst_duty = 100.0f * ((float)cap.high_us / (float)cap.period_us);
+    g_invalid_count = 0u;
+
+    inst_hz = (float)cap.tim_clk_hz / (float)cap.period_ticks;
+    inst_duty = 100.0f * ((float)cap.high_ticks / (float)cap.period_ticks);
     if (inst_duty < 0.0f) {
         inst_duty = 0.0f;
     }

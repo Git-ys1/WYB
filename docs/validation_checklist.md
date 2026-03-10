@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.5.0-R1 MODE_FREQ Frequency + Duty
+- [ ] `F50-MODE-01`: 可进入 `MODE_FREQ`，RIGHT 短按可切 `20/200/2k/20k/200k` 五档。
+- [ ] `F50-NOSIG-01`: 开路输入时显示 `NO SIG`，不死机不卡键。
+- [ ] `F50-1K-50P`: 1kHz/50% 输入显示稳定（频率与占空比）。
+- [ ] `F50-RANGE-01`: `20Hz/200Hz/2kHz/20kHz/200kHz` 五点均可出值。
+- [ ] `F50-DUTY-01`: duty 在 `10%/50%/90%` 三点可用（显示到 1%）。
+- [ ] `F50-SAFE-01`: FREQ 模式下 `PB0` 维持高阻、蜂鸣器不连续响。
+- [ ] `F50-REG-01`: RES/VDC/DIODE/CONT 无回归，OLED 连续 5 分钟无黑屏/花屏。
+- [ ] `F50-MAP-01`: `MODE CH3=FREQ` 映射与 README 冻结口径一致。
+
 ## T-1.4.5C-R1 Mode Isolation Alignment
 - [ ] `MODE-TRUTH-01`: 实测 `PB4/PB5/PB6` 的 A/B/C 组合与 `CH0/CH1/CH2/CH3` 真值表一致。
 - [ ] `MODE-ISO-RES-01`: 二极管器件保持接入时，RES 测 `1k/10k/100k` 与拔掉二极管时同量级。

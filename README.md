@@ -60,7 +60,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `AFE_OK=0`：`R: ----`, `STAT: AFE BAD`
   - `AFE_OK=1`：按 3.5 位格式显示电阻
 - 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
-- `VDC/RES/CONT/DIODE` 已进入正式测量页；`FREQ` 仍为 READY 占位。
+- `VDC/RES/CONT/DIODE/FREQ` 均已进入正式测量页。
 - RES 当前使用 OPAMP1 内部跟随器采样链路（`PA1 -> OPAMP1 -> ADC VOPAMP1`），不再走 TL072->PC0 正式路径。
 - 片内 ADC 驱动：
   - `adc1_init`
@@ -202,11 +202,30 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `CH0 -> VDC`
   - `CH1 -> RES + CONT`（本轮 CONT 仍复用 RES 低档采样链）
   - `CH2 -> DIODE`
-  - `CH3 -> FREQ`（预留）
+  - `CH3 -> FREQ`
 - 代码映射按 `A/B/C = bit0/bit1/bit2` 固定实现；硬件通道定义必须与 `mux_mode_channel_t` 一一对应。
 - `RES` 仅修路径变化判定：从“只看档位”升级为“物理模式通道 + 电阻子量程”联合判定，保证从 `VDC/DIODE/CONT` 切回 `RES` 时正确触发 `adc1_mark_input_path_changed()`。
 - `DIODE` 继续使用 `PB0` 激励（高=激励，退出后 Analog 高阻）；`CONT` 本轮不做独立模块拆分。
 - `VOLTAGE` 通道本轮仅保留硬件契约，不新增验收目标。
+
+## T-1.5.0-R1 MODE_FREQ 频率闭环
+- MODE 映射冻结：`CH0=VOLTAGE`、`CH1=RES+CONT`、`CH2=DIODE`、`CH3=FREQ`。
+- `MODE_FREQ` 正式接入 `PA0(TIM2_CH1)` 输入捕获链，支持 5 档：
+  - `20Hz/200Hz/2kHz/20kHz/200kHz`
+- BSP 捕获输出改为 ticks 语义：
+  - `period_ticks`, `high_ticks`, `tim_clk_hz`, `last_capture_ms`, `valid`
+- `drv_freq_ic` 计算链改为：
+  - `inst_hz = tim_clk_hz / period_ticks`
+  - `inst_duty = 100 * high_ticks / period_ticks`
+  - 保留 4/6/8 点滑窗与连续异常无信号判定。
+- FREQ 运行安全态：
+  - 进入 FREQ 时强制 `diode_drv_off()`（PB0 高阻）
+  - 强制 `beep_continuous(false)`（蜂鸣器不参与频率测量）
+  - 仅采样，不向前端注入激励。
+- 主页面显示：
+  - `F: xxxxHz`
+  - `D: xx%`
+  - 无信号显示 `NO SIG`。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -217,7 +236,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - RES 输入：`PA1 (OPAMP1_VINP0)` -> `OPAMP1 internal output` -> `ADC1(VOPAMP1)`
 - 调试 ADC 输入：`PC0 (ADC12_IN6)`（非 RES 正式链）
 - RES CD4051：`PD5/PD6/PD7`
-- MODE CD4051（U9）：`PB4/PB5/PB6`（`CH0=VDC, CH1=RES+CONT, CH2=DIODE, CH3=FREQ预留`）
+- MODE CD4051（U9）：`PB4/PB5/PB6`（`CH0=VDC, CH1=RES+CONT, CH2=DIODE, CH3=FREQ`）
 - VOLT CD4051（U11）：`PB13/PB14`
 - 频率输入捕获：`PA0 (TIM2_CH1)`
 - 蜂鸣器：`PB1`（GPIO，active-low，PNP 高边）

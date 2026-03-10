@@ -8,6 +8,7 @@
 #include "../BSP/bsp_keys.h"
 #include "../Drivers/drv_adc_internal.h"
 #include "../Drivers/drv_beep.h"
+#include "../Drivers/drv_freq_ic.h"
 #include "../Drivers/drv_opamp_internal.h"
 #include "../Measurements/measure_res.h"
 #include "../Measurements/measure_res_auto.h"
@@ -55,6 +56,9 @@ struct app_ctx_s {
     uint8_t res_range_sel;
     uint8_t vdc_range_sel;
     uint8_t freq_range_sel;
+    float freq_hz;
+    float freq_duty;
+    app_err_t freq_err;
 
     bool right_long_fired;
     bool left_long_fired;
@@ -101,6 +105,23 @@ static app_ctx_t g_app;
 static const char *k_vdc_name[VDC_RANGE_COUNT] = {"2000mV", "20V"};
 static const char *k_freq_name[FREQ_RANGE_COUNT] = {"20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
 
+static bsp_freq_profile_t freq_profile_from_sel(uint8_t sel)
+{
+    switch (sel) {
+    case FREQ_RANGE_20HZ:
+        return BSP_FREQ_PROFILE_20HZ;
+    case FREQ_RANGE_200HZ:
+        return BSP_FREQ_PROFILE_200HZ;
+    case FREQ_RANGE_2KHZ:
+        return BSP_FREQ_PROFILE_2KHZ;
+    case FREQ_RANGE_20KHZ:
+        return BSP_FREQ_PROFILE_20KHZ;
+    case FREQ_RANGE_200KHZ:
+    default:
+        return BSP_FREQ_PROFILE_200KHZ;
+    }
+}
+
 static const char *range_name_res(const app_ctx_t *ctx)
 {
     return measure_res_range_name(ctx->res_range_sel);
@@ -142,6 +163,11 @@ static void range_next_vdc(app_ctx_t *ctx)
 static void range_next_freq(app_ctx_t *ctx)
 {
     ctx->freq_range_sel = (uint8_t)((ctx->freq_range_sel + 1u) % FREQ_RANGE_COUNT);
+    bsp_freq_capture_set_profile(freq_profile_from_sel(ctx->freq_range_sel));
+    freq_start();
+    ctx->freq_hz = 0.0f;
+    ctx->freq_duty = 0.0f;
+    ctx->freq_err = ERR_NO_SIGNAL;
 }
 
 static void range_next_noop(app_ctx_t *ctx)
@@ -293,10 +319,22 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
     ctx->ui_dirty = true;
 }
 
-static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
+static void measure_tick_freq(app_ctx_t *ctx, uint32_t now_ms)
 {
-    (void)ctx;
+    float hz = 0.0f;
+    float duty = 0.0f;
+    app_err_t err;
+
     (void)now_ms;
+
+    err = freq_get(&hz, &duty);
+    ctx->freq_err = err;
+    if (err == ERR_OK) {
+        ctx->freq_hz = hz;
+        ctx->freq_duty = duty;
+    }
+
+    ctx->ui_dirty = true;
 }
 
 static void measure_tick_vdc(app_ctx_t *ctx, uint32_t now_ms)
@@ -406,7 +444,7 @@ static const mode_desc_t k_mode_desc[MODE_COUNT] = {
         .title = "FREQ",
         .range_name_fn = range_name_freq,
         .range_next_fn = range_next_freq,
-        .measure_fn = measure_tick_noop
+        .measure_fn = measure_tick_freq
     },
     [MODE_CONT] = {
         .title = "CONT",
@@ -464,6 +502,16 @@ static void mode_next(void)
     }
     if ((prev != MODE_VDC) && (g_app.mode == MODE_VDC)) {
         vdc_enter(&g_app.vdc_ctx, (vdc_range_t)g_app.vdc_range_sel);
+    }
+    if ((prev != MODE_FREQ) && (g_app.mode == MODE_FREQ)) {
+        diode_drv_off();
+        beep_continuous(false);
+        mux_set_mode(MUX_MODE_AC);
+        bsp_freq_capture_set_profile(freq_profile_from_sel(g_app.freq_range_sel));
+        freq_start();
+        g_app.freq_hz = 0.0f;
+        g_app.freq_duty = 0.0f;
+        g_app.freq_err = ERR_NO_SIGNAL;
     }
     if ((prev == MODE_DIODE) && (g_app.mode != MODE_DIODE)) {
         diode_exit(&g_app.diode_ctx);
@@ -545,6 +593,8 @@ static void build_main_frame(app_ui_frame_t *frame)
                            g_app.cont.beep_on ? "BEEP" : "OPEN");
         }
     } else if (g_app.mode == MODE_VDC) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
+    } else if (g_app.mode == MODE_FREQ) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
     } else if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
@@ -631,6 +681,21 @@ static void build_main_frame(app_ui_frame_t *frame)
                            (unsigned long)g_app.vdc.mv_sense);
         } else {
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:---- MV:----");
+        }
+    } else if (g_app.mode == MODE_FREQ) {
+        if (g_app.freq_err == ERR_OK) {
+            uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
+            uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
+            if (duty_i > 100u) {
+                duty_i = 100u;
+            }
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%luHz", (unsigned long)hz_i);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OK");
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "NO SIG");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: NO SIG");
         }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
@@ -746,6 +811,38 @@ static void build_debug_frame(app_ui_frame_t *frame)
         }
         (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s", vdc_status_name(g_app.vdc.status));
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.vdc.err);
+    } else if (g_app.mode == MODE_FREQ) {
+        bsp_capture_t cap = {0};
+        bool cap_ok = bsp_freq_get_capture(&cap) && cap.valid;
+
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE:%u RNG:%s",
+                       (unsigned)mux_get_mode_phys_ch(),
+                       k_freq_name[g_app.freq_range_sel % FREQ_RANGE_COUNT]);
+        if (cap_ok) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "P:%lu H:%lu",
+                           (unsigned long)cap.period_ticks,
+                           (unsigned long)cap.high_ticks);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CLK:%lu",
+                           (unsigned long)cap.tim_clk_hz);
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "P:---- H:----");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CLK:----");
+        }
+        if (g_app.freq_err == ERR_OK) {
+            uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
+            uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
+            if (duty_i > 100u) {
+                duty_i = 100u;
+            }
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "F:%luHz", (unsigned long)hz_i);
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "D:%lu%%", (unsigned long)duty_i);
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:OK");
+        } else {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "F:----");
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "D:--%%");
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:NO SIG");
+        }
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.freq_err);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -789,6 +886,9 @@ void app_init(void)
     g_app.res_range_sel = RES_RANGE_SEL_2K;
     g_app.vdc_range_sel = 0u;
     g_app.freq_range_sel = 0u;
+    g_app.freq_hz = 0.0f;
+    g_app.freq_duty = 0.0f;
+    g_app.freq_err = ERR_NO_SIGNAL;
 
     g_app.adc_init_err = adc1_init();
     g_app.opamp_init_err = opamp1_init();
@@ -848,13 +948,18 @@ void app_poll_button(void)
             if (evt.type == KEY_EVT_DOWN) {
                 g_app.right_long_fired = false;
             } else if (evt.type == KEY_EVT_LONG) {
+                bool from_freq = (g_app.mode == MODE_FREQ);
                 g_app.right_long_fired = true;
                 mode_next();
-                beep_once(80u);
+                if (!from_freq) {
+                    beep_once(80u);
+                }
                 changed = true;
             } else if (is_short_up_event(&evt, g_app.right_long_fired)) {
                 active_mode_desc()->range_next_fn(&g_app);
-                beep_once(30u);
+                if (g_app.mode != MODE_FREQ) {
+                    beep_once(30u);
+                }
                 changed = true;
             }
             break;
@@ -866,7 +971,9 @@ void app_poll_button(void)
                 g_app.left_long_fired = true;
             } else if (is_short_up_event(&evt, g_app.left_long_fired)) {
                 toggle_debug_view();
-                beep_once(25u);
+                if (g_app.mode != MODE_FREQ) {
+                    beep_once(25u);
+                }
                 changed = true;
             }
             break;
@@ -880,6 +987,7 @@ void app_poll_button(void)
     if (changed) {
         g_app.ui_dirty = true;
         g_app.next_ui_ms = now;
+        g_app.next_meas_ms = now;
     }
 }
 

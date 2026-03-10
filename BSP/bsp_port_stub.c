@@ -87,10 +87,21 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
     if (capture == NULL) {
         return false;
     }
-    capture->period_us = 0;
-    capture->high_us = 0;
+    capture->period_ticks = 0u;
+    capture->high_ticks = 0u;
+    capture->tim_clk_hz = 0u;
+    capture->last_capture_ms = 0u;
     capture->valid = false;
     return false;
+}
+
+void bsp_freq_capture_start(void)
+{
+}
+
+void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
+{
+    (void)profile;
 }
 
 void bsp_debug_log(const char *msg)
