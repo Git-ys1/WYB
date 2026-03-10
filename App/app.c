@@ -13,6 +13,7 @@
 #include "../Measurements/measure_res_auto.h"
 #include "../Measurements/measure_cont.h"
 #include "../Measurements/measure_diode.h"
+#include "../Measurements/measure_vdc.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
 #include "app_bootdiag.h"
@@ -84,6 +85,8 @@ struct app_ctx_s {
 
     cont_ctx_t cont_ctx;
     cont_result_t cont;
+    vdc_ctx_t vdc_ctx;
+    vdc_result_t vdc;
     diode_ctx_t diode_ctx;
     diode_latched_result_t diode;
 
@@ -133,6 +136,7 @@ static void range_next_res(app_ctx_t *ctx)
 static void range_next_vdc(app_ctx_t *ctx)
 {
     ctx->vdc_range_sel = (uint8_t)((ctx->vdc_range_sel + 1u) % VDC_RANGE_COUNT);
+    vdc_set_range(&ctx->vdc_ctx, (vdc_range_t)ctx->vdc_range_sel);
 }
 
 static void range_next_freq(app_ctx_t *ctx)
@@ -295,6 +299,29 @@ static void measure_tick_noop(app_ctx_t *ctx, uint32_t now_ms)
     (void)now_ms;
 }
 
+static void measure_tick_vdc(app_ctx_t *ctx, uint32_t now_ms)
+{
+    app_err_t err;
+
+    err = vdc_tick(&ctx->vdc_ctx, now_ms);
+    if (err != ERR_OK) {
+        ctx->vdc.valid = false;
+        ctx->vdc.status = VDC_STAT_ERR;
+        ctx->vdc.err = err;
+        ctx->ui_dirty = true;
+        return;
+    }
+
+    err = vdc_get_result(&ctx->vdc_ctx, &ctx->vdc);
+    if (err != ERR_OK) {
+        ctx->vdc.valid = false;
+        ctx->vdc.status = VDC_STAT_ERR;
+        ctx->vdc.err = err;
+    }
+
+    ctx->ui_dirty = true;
+}
+
 static void measure_tick_diode(app_ctx_t *ctx, uint32_t now_ms)
 {
     diode_result_t step_out;
@@ -367,7 +394,7 @@ static const mode_desc_t k_mode_desc[MODE_COUNT] = {
         .title = "VDC",
         .range_name_fn = range_name_vdc,
         .range_next_fn = range_next_vdc,
-        .measure_fn = measure_tick_noop
+        .measure_fn = measure_tick_vdc
     },
     [MODE_RES] = {
         .title = "RES",
@@ -431,6 +458,12 @@ static void mode_next(void)
     }
     if ((prev != MODE_CONT) && (g_app.mode == MODE_CONT)) {
         cont_reset(&g_app.cont_ctx);
+    }
+    if ((prev == MODE_VDC) && (g_app.mode != MODE_VDC)) {
+        vdc_exit(&g_app.vdc_ctx);
+    }
+    if ((prev != MODE_VDC) && (g_app.mode == MODE_VDC)) {
+        vdc_enter(&g_app.vdc_ctx, (vdc_range_t)g_app.vdc_range_sel);
     }
     if ((prev == MODE_DIODE) && (g_app.mode != MODE_DIODE)) {
         diode_exit(&g_app.diode_ctx);
@@ -511,6 +544,8 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: %s",
                            g_app.cont.beep_on ? "BEEP" : "OPEN");
         }
+    } else if (g_app.mode == MODE_VDC) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
     } else if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         if (measure_res_range_is_exp(g_app.res_auto.locked_range_sel)) {
@@ -566,6 +601,36 @@ static void build_main_frame(app_ui_frame_t *frame)
                            (unsigned)g_app.diode.raw_u16);
         } else {
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:---- RAW:----");
+        }
+    } else if (g_app.mode == MODE_VDC) {
+        if (g_app.vdc.status == VDC_STAT_OK) {
+            if (g_app.vdc.range == VDC_RANGE_2000MV) {
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VAL: %lumV",
+                               (unsigned long)g_app.vdc.vin_mv);
+            } else {
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VAL: %lu.%02luV",
+                               (unsigned long)(g_app.vdc.vin_mv / 1000u),
+                               (unsigned long)((g_app.vdc.vin_mv % 1000u) / 10u));
+            }
+        } else if (g_app.vdc.status == VDC_STAT_OL) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OL");
+        } else if (g_app.vdc.status == VDC_STAT_MUX_BAD) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "MUX BAD");
+        } else if (g_app.vdc.status == VDC_STAT_ADC_BAD) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ADC BAD");
+        } else if (g_app.vdc.status == VDC_STAT_ERR) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ERR");
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "PROBE...");
+        }
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s",
+                       vdc_status_name(g_app.vdc.status));
+        if (g_app.vdc.valid) {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:%lu MV:%lu",
+                           (unsigned long)g_app.vdc.vin_mv,
+                           (unsigned long)g_app.vdc.mv_sense);
+        } else {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:---- MV:----");
         }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
@@ -666,6 +731,23 @@ static void build_debug_frame(app_ui_frame_t *frame)
         }
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
                        (unsigned)g_app.diode.err);
+    } else if (g_app.mode == MODE_VDC) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u",
+                       (unsigned)mux_get_mode_phys_ch(),
+                       (unsigned)mux_get_volt_phys_ch());
+        if (g_app.vdc.valid) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.vdc.raw);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.vdc.mv_sense);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:%lu", (unsigned long)g_app.vdc.vin_mv);
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:%lu", (unsigned long)g_app.vdc.vdda_mv);
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:----");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :----");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:----");
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:----");
+        }
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s", vdc_status_name(g_app.vdc.status));
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.vdc.err);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);
@@ -723,6 +805,11 @@ void app_init(void)
     memset(&g_app.cont, 0, sizeof(g_app.cont));
     g_app.cont.state = CONT_STATE_OPEN;
     g_app.cont.err = ERR_OK;
+    vdc_init(&g_app.vdc_ctx);
+    memset(&g_app.vdc, 0, sizeof(g_app.vdc));
+    g_app.vdc.range = (vdc_range_t)g_app.vdc_range_sel;
+    g_app.vdc.status = VDC_STAT_PROBE;
+    g_app.vdc.err = ERR_NOT_IMPL;
     diode_init(&g_app.diode_ctx);
     diode_exit(&g_app.diode_ctx);
     memset(&g_app.diode, 0, sizeof(g_app.diode));
@@ -801,7 +888,13 @@ void app_poll_button(void)
 void app_measure_tick(void)
 {
     uint32_t now = bsp_millis();
-    uint32_t period_ms = (g_app.mode == MODE_CONT) ? CONT_MEAS_PERIOD_MS : MEAS_PERIOD_MS;
+    uint32_t period_ms = MEAS_PERIOD_MS;
+
+    if (g_app.mode == MODE_CONT) {
+        period_ms = CONT_MEAS_PERIOD_MS;
+    } else if (g_app.mode == MODE_VDC) {
+        period_ms = VDC_SAMPLE_PERIOD_MS;
+    }
 
     if ((int32_t)(now - g_app.next_meas_ms) < 0) {
         return;
@@ -820,7 +913,7 @@ void app_ui_tick(void)
     app_display_poll();
 
     if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
-        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) && (g_app.mode != MODE_DIODE)) {
+        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) && (g_app.mode != MODE_DIODE) && (g_app.mode != MODE_VDC)) {
             ui_update_debug_adc_sample();
         }
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;

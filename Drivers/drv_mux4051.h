@@ -36,5 +36,7 @@ void mux_set_volt_range(mux_volt_range_t range);
 mux_res_range_t mux_get_res_range(void);
 mux_mode_channel_t mux_get_mode(void);
 mux_volt_range_t mux_get_volt_range(void);
+uint8_t mux_get_mode_phys_ch(void);
+uint8_t mux_get_volt_phys_ch(void);
 
 #endif

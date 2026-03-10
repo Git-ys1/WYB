@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.4.2-R1 U11+U9 VDC Re-bringup
+- [ ] `V42-HW-00`: PA1 仅连接 U9 pin3，U11/U9 供电正常，VDC_RED 空载对地无异常上拉。
+- [ ] `V42-U11-12`: 输入 1.2V 时，2000mV 档 U11 pin3 约 1.2V，20V 档 U11 pin3 约 0.18V。
+- [ ] `V42-RES-01`: 先验 RES 回归（2K测1K 不再 `Rcalc≈3800`，`Rdisp` 不再 `0L`）。
+- [ ] `V42-REG-01`: CONT 与 DIODE 行为不回归。
+- [ ] `V42-VDC-12`: 输入 1.2V 时，2000mV 档约 1200mV，20V 档约 1.20V。
+- [ ] `V42-VDC-SWITCH`: 2000mV/20V 来回切换，1~2 周期内稳定，无长期卡值。
+- [ ] `V42-SAFE-01`: VDC 路径异常时只显示 `STAT: ERR/OL/MUX BAD/ADC BAD`，不进 Error_Handler。
+- [ ] `V42-SAFE-02`: 长驻 VDC 页面不死机、按键持续可用、PB12 不进入 fault 闪码。
+
 ## T-1.3.1-R1 DIODE Plan-A
 - [ ] `D31-FWD-4148`: 1N4148 正向，显示 `A=RED K=BLK`，`Vf≈0.5~0.8V`，`STAT:OK`。
 - [ ] `D31-REV-4148`: 1N4148 反接，显示 `OL` + `REV/OPEN`。

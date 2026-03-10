@@ -60,7 +60,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `AFE_OK=0`：`R: ----`, `STAT: AFE BAD`
   - `AFE_OK=1`：按 3.5 位格式显示电阻
 - 200 档标记为实验档（`200 EXP`），本轮主验收档位为 `2K/20K/200K`。
-- `VDC/FREQ` 仍为 READY 占位；`CONT` 与 `DIODE` 已进入正式测量页。
+- `VDC/RES/CONT/DIODE` 已进入正式测量页；`FREQ` 仍为 READY 占位。
 - RES 当前使用 OPAMP1 内部跟随器采样链路（`PA1 -> OPAMP1 -> ADC VOPAMP1`），不再走 TL072->PC0 正式路径。
 - 片内 ADC 驱动：
   - `adc1_init`
@@ -177,8 +177,24 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 判定阈值：
   - `mv < 50mV` -> `SHORT`
   - `mv > 0.95*VDDA` -> `OL / REV-OPEN`
-  - 其余 -> `OK`，显示 `A=RED K=BLK` 与 `Vf=x.xxxV`
+- 其余 -> `OK`，显示 `A=RED K=BLK` 与 `Vf=x.xxxV`
 - 离开 DIODE 模式时 `PB0` 立即回高阻，避免激励在其它模式误保持。
+
+## T-1.4.2-R1 VDC 重做（U11 + U9 接管 PA1）
+- 本轮从 `37fc54c` 重开 `feature/t1.4-vdc-r2`，先恢复 RES，再做 VDC bring-up。
+- 新硬件映射冻结：
+  - `U11 = VOLT_RANGE_MUX`：`2000mV -> CH0`，`20V -> CH1`
+  - `U9 = MODE_MUX`：`VDC -> CH0`，`RES/CONT/DIODE -> CH1`（本轮临时共享）
+  - `PA1` 仅接 `U9 pin3`，不允许再把模拟前端直并到 PA1。
+- VDC 采样流程固定：
+  - `mux_set_mode(MUX_MODE_VOLTAGE)`
+  - `mux_set_volt_range(current_range)`
+  - `adc1_mark_input_path_changed()`
+  - `settle(1ms)` + filtered read（内部含 dummy-first）
+- 换算口径：
+  - `2000mV`：`vin_mv = mv_sense + off_2v`（`off_2v=0`）
+  - `20V`：`vin_mv = (mv_sense * 800 + 60) / 120 + off_20v`（`off_20v=0`）
+- VDC 异常只显示页面状态（`OL/ERR/MUX BAD/ADC BAD`），不得触发 `Error_Handler` 或 bootdiag fault。
 
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
@@ -189,8 +205,8 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - RES 输入：`PA1 (OPAMP1_VINP0)` -> `OPAMP1 internal output` -> `ADC1(VOPAMP1)`
 - 调试 ADC 输入：`PC0 (ADC12_IN6)`（非 RES 正式链）
 - RES CD4051：`PD5/PD6/PD7`
-- MODE CD4051：`PB4/PB5/PB6`
-- VOLT CD4051：`PB13/PB14`
+- MODE CD4051（U9）：`PB4/PB5/PB6`
+- VOLT CD4051（U11）：`PB13/PB14`
 - 频率输入捕获：`PA0 (TIM2_CH1)`
 - 蜂鸣器：`PB1`（GPIO，active-low，PNP 高边）
 - 二极管激励：`PB0`（DIODE_DRV，高=激励，Analog=高阻关闭）
