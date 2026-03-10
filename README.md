@@ -196,6 +196,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `20V`：`vin_mv = (mv_sense * 800 + 60) / 120 + off_20v`（`off_20v=0`）
 - VDC 异常只显示页面状态（`OL/ERR/MUX BAD/ADC BAD`），不得触发 `Error_Handler` 或 bootdiag fault。
 
+## T-1.4.5C-R1 模式分立硬件契约（最小改造）
+- 本轮目标是固化 MODE MUX 契约并恢复模式隔离稳定性，不重构 UI 主循环，不改 OLED/bootdiag，不改 RES 公式。
+- MODE CD4051（U9）物理通道口径冻结为：
+  - `CH0 -> VDC`
+  - `CH1 -> RES + CONT`（本轮 CONT 仍复用 RES 低档采样链）
+  - `CH2 -> DIODE`
+  - `CH3 -> FREQ`（预留）
+- 代码映射按 `A/B/C = bit0/bit1/bit2` 固定实现；硬件通道定义必须与 `mux_mode_channel_t` 一一对应。
+- `RES` 仅修路径变化判定：从“只看档位”升级为“物理模式通道 + 电阻子量程”联合判定，保证从 `VDC/DIODE/CONT` 切回 `RES` 时正确触发 `adc1_mark_input_path_changed()`。
+- `DIODE` 继续使用 `PB0` 激励（高=激励，退出后 Analog 高阻）；`CONT` 本轮不做独立模块拆分。
+- `VOLTAGE` 通道本轮仅保留硬件契约，不新增验收目标。
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
@@ -205,7 +217,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - RES 输入：`PA1 (OPAMP1_VINP0)` -> `OPAMP1 internal output` -> `ADC1(VOPAMP1)`
 - 调试 ADC 输入：`PC0 (ADC12_IN6)`（非 RES 正式链）
 - RES CD4051：`PD5/PD6/PD7`
-- MODE CD4051（U9）：`PB4/PB5/PB6`
+- MODE CD4051（U9）：`PB4/PB5/PB6`（`CH0=VDC, CH1=RES+CONT, CH2=DIODE, CH3=FREQ预留`）
 - VOLT CD4051（U11）：`PB13/PB14`
 - 频率输入捕获：`PA0 (TIM2_CH1)`
 - 蜂鸣器：`PB1`（GPIO，active-low，PNP 高边）

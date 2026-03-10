@@ -17,13 +17,27 @@ static void write_3bit_value(bsp_pin_t a_pin, bsp_pin_t b_pin, bsp_pin_t c_pin, 
 
 static uint8_t mode_to_phys_ch(mux_mode_channel_t mode)
 {
-    /* T-1.4.2-R1 hardware freeze:
-     * U9 (MODE_MUX): CH0=VDC, CH1=RES/CONT/DIODE (shared path this round).
+    /* T-1.4.5C hardware contract:
+     * MODE CD4051 physical channels
+     *   CH0 -> VDC
+     *   CH1 -> RES + CONT (shared this round)
+     *   CH2 -> DIODE
+     *   CH3 -> FREQ reserve
+     * A/B/C output is written as bit0/bit1/bit2 of this channel index.
      */
-    if (mode == MUX_MODE_VOLTAGE) {
+    switch (mode) {
+    case MUX_MODE_VOLTAGE:
         return 0u;
+    case MUX_MODE_RES:
+    case MUX_MODE_ONOFF:
+        return 1u;
+    case MUX_MODE_DIODE:
+        return 2u;
+    case MUX_MODE_AC:
+        return 3u;
+    default:
+        return 1u;
     }
-    return 1u;
 }
 
 static uint8_t volt_to_phys_ch(mux_volt_range_t range)

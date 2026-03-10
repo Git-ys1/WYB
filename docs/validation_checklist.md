@@ -1,5 +1,13 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.4.5C-R1 Mode Isolation Alignment
+- [ ] `MODE-TRUTH-01`: 实测 `PB4/PB5/PB6` 的 A/B/C 组合与 `CH0/CH1/CH2/CH3` 真值表一致。
+- [ ] `MODE-ISO-RES-01`: 二极管器件保持接入时，RES 测 `1k/10k/100k` 与拔掉二极管时同量级。
+- [ ] `MODE-ISO-DIODE-01`: 离开 DIODE 后 `PB0` 立即高阻，切回 RES/CONT 无激励残留串扰。
+- [ ] `MODE-ISO-CONT-01`: CONT 继续复用 RES 低档链路，仍可独立判定 `OPEN/BEEP`，不受 DIODE 干扰。
+- [ ] `MODE-REG-01`: `RES -> DIODE -> RES -> CONT -> RES` 连续切换 20 次，无黑屏、无卡死、无明显串扰。
+- [ ] `RES-REG-01`: `2K/20K/200K` 主验收档持续正确，`200` 保持实验档口径。
+
 ## T-1.4.2-R1 U11+U9 VDC Re-bringup
 - [ ] `V42-HW-00`: PA1 仅连接 U9 pin3，U11/U9 供电正常，VDC_RED 空载对地无异常上拉。
 - [ ] `V42-U11-12`: 输入 1.2V 时，2000mV 档 U11 pin3 约 1.2V，20V 档 U11 pin3 约 0.18V。

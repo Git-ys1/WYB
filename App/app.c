@@ -643,26 +643,24 @@ static void build_main_frame(app_ui_frame_t *frame)
 static void build_debug_frame(app_ui_frame_t *frame)
 {
     const mode_desc_t *md = active_mode_desc();
-    const char *range = md->range_name_fn(&g_app);
     const res_sample_t *s = &g_app.res_sample;
     char rc_line[22];
     bool rcalc_valid;
+    uint8_t mode_mux_idx;
+    uint8_t res_mux_idx;
 
     memset(frame, 0, sizeof(*frame));
 
     (void)snprintf(frame->line[0], sizeof(frame->line[0]), "DEBUG %s OP1", md->title);
-    if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
-        const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "AUTO:%s MUX:%u",
-                       locked, (unsigned)g_app.res_binding.mux_idx);
-    } else if (g_app.mode == MODE_DIODE) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "DIODE MUX:DIODE");
-    } else if (g_app.mode == MODE_CONT) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT FIXED:R200");
-    } else if ((g_app.mode == MODE_RES) && measure_res_range_is_exp(g_app.res_range_sel)) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s EXP MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
+    mode_mux_idx = (uint8_t)(mux_get_mode_phys_ch() & 0x07u);
+    res_mux_idx = (uint8_t)(mux_get_res_range() & 0x07u);
+    if (g_app.mode == MODE_DIODE) {
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODEMUX:%c",
+                       (char)('0' + mode_mux_idx));
     } else {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG:%s MUX:%u", range, (unsigned)g_app.res_binding.mux_idx);
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODEMUX:%c RESMUX:%c",
+                       (char)('0' + mode_mux_idx),
+                       (char)('0' + res_mux_idx));
     }
 
     rcalc_valid = (s->valid && (g_app.res_calc_err == ERR_OK));

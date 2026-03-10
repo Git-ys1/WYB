@@ -11,12 +11,16 @@ typedef enum {
     MUX_RES_COUNT
 } mux_res_range_t;
 
+/* MODE CD4051 logical channel contract:
+ * CH0=VOLTAGE, CH1=RES(+CONT in T-1.4.5C), CH2=DIODE, CH3=FREQ reserve.
+ * A/B/C control follows bit0/bit1/bit2 of the physical channel index.
+ */
 typedef enum {
-    MUX_MODE_VOLTAGE = 0,
-    MUX_MODE_RES,
-    MUX_MODE_DIODE,
-    MUX_MODE_ONOFF,
-    MUX_MODE_AC,
+    MUX_MODE_VOLTAGE = 0, /* logical VOLTAGE path */
+    MUX_MODE_RES,         /* logical RES path */
+    MUX_MODE_DIODE,       /* logical DIODE path */
+    MUX_MODE_ONOFF,       /* logical CONT path (shared with RES this round) */
+    MUX_MODE_AC,          /* logical FREQ reserve path */
     MUX_MODE_CAP,
     MUX_MODE_RESERVED6,
     MUX_MODE_RESERVED7
