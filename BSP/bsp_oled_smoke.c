@@ -640,6 +640,15 @@ void oled_smoke_fb_clear(uint8_t fill)
     fb_clear(fill);
 }
 
+void oled_smoke_fb_set_fullscreen_bitmap(const uint8_t *bmp)
+{
+    if (bmp == NULL) {
+        fb_clear(0x00u);
+        return;
+    }
+    memcpy(s_fb, bmp, sizeof(s_fb));
+}
+
 void oled_smoke_draw_text_line(uint8_t line, const char *text)
 {
     if ((line >= OLED_SMOKE_PAGES) || (text == NULL)) {

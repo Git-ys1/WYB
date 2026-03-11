@@ -50,8 +50,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
-I2C_HandleTypeDef hi2c3;
-TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
@@ -61,10 +59,7 @@ TIM_HandleTypeDef htim2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
-static void MX_I2C3_Init(void);
-static void MX_TIM16_Init(void);
 static void MX_TIM2_Init(void);
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN PFP */
 static void SmokeLed_Init(void);
 static void SmokeLed_Run(void);
@@ -133,16 +128,12 @@ int main(void)
   bootdiag_led_init();
 #if APP_EMERGENCY_LED_SMOKE_TEST
   (void)MX_I2C2_Init;
-  (void)MX_I2C3_Init;
   (void)MX_TIM2_Init;
-  (void)MX_TIM16_Init;
   SmokeLed_Init();
   SmokeLed_Run();
 #else
   MX_I2C2_Init();
-  MX_I2C3_Init();
   MX_TIM2_Init();
-  MX_TIM16_Init();
 
   /* USER CODE BEGIN 2 */
   bootdiag_set_stage(BOOT_BSP);
@@ -243,72 +234,6 @@ static void MX_I2C2_Init(void)
 }
 
 /**
-  * @brief I2C3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C3_Init(void)
-{
-  hi2c3.Instance = I2C3;
-  hi2c3.Init.Timing = 0x20303E5D;
-  hi2c3.Init.OwnAddress1 = 0;
-  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c3.Init.OwnAddress2 = 0;
-  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief TIM16 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM16_Init(void)
-{
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 15;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 369;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_PWM_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 185;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim16, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  HAL_TIM_MspPostInit(&htim16);
-}
-
-/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -397,12 +322,6 @@ static void MX_GPIO_Init(void)
   /* Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, RES_MODE_A_Pin|RES_MODE_B_Pin|RES_MODE_C_Pin, GPIO_PIN_RESET);
 
-  /* Configure GPIO pin : KEY_Pin */
-  GPIO_InitStruct.Pin = KEY_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(KEY_GPIO_Port, &GPIO_InitStruct);
-
   /* Configure GPIO pins : VOLTAGE_MODE_A_Pin VOLTAGE_MODE_B_Pin CHANNLE_SELEC_A_Pin CHANNLE_SELEC_B_Pin
                             CHANNLE_SELEC_C_Pin */
   GPIO_InitStruct.Pin = VOLTAGE_MODE_A_Pin|VOLTAGE_MODE_B_Pin|CHANNLE_SELEC_A_Pin|CHANNLE_SELEC_B_Pin
@@ -419,9 +338,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /* EXTI interrupt init */
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

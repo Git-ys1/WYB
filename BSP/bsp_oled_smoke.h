@@ -54,6 +54,7 @@ bool oled_smoke_init(oled_smoke_profile_t profile, uint8_t addr7);
 bool oled_smoke_test_pattern(oled_smoke_step_t step);
 bool oled_smoke_show_counter(uint32_t cnt);
 void oled_smoke_fb_clear(uint8_t fill);
+void oled_smoke_fb_set_fullscreen_bitmap(const uint8_t *bmp);
 void oled_smoke_draw_text_line(uint8_t line, const char *text);
 bool oled_smoke_flush_full(void);
 void oled_smoke_diag_reset(void);

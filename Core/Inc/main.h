@@ -57,9 +57,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define KEY_Pin GPIO_PIN_13
-#define KEY_GPIO_Port GPIOC
-#define KEY_EXTI_IRQn EXTI15_10_IRQn
 #define VOLTAGE_MODE_A_Pin GPIO_PIN_13
 #define VOLTAGE_MODE_A_GPIO_Port GPIOB
 #define VOLTAGE_MODE_B_Pin GPIO_PIN_14
@@ -76,9 +73,6 @@ void Error_Handler(void);
 #define CHANNLE_SELEC_B_GPIO_Port GPIOB
 #define CHANNLE_SELEC_C_Pin GPIO_PIN_6
 #define CHANNLE_SELEC_C_GPIO_Port GPIOB
-#define BEEP_Pin GPIO_PIN_8
-#define BEEP_GPIO_Port GPIOB
-
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

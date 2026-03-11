@@ -11,7 +11,6 @@ static bool g_pins[BSP_PIN_COUNT];
 void bsp_init(void)
 {
     memset(g_pins, 0, sizeof(g_pins));
-    g_pins[BSP_PIN_KEY] = true;
     g_ms = 0;
 }
 
@@ -67,19 +66,6 @@ bool bsp_gpio_read(bsp_pin_t pin)
         return g_pins[pin];
     }
     return false;
-}
-
-bool bsp_pwm_start(bsp_pwm_t pwm, uint32_t freq_hz, uint8_t duty_pct)
-{
-    (void)pwm;
-    (void)freq_hz;
-    (void)duty_pct;
-    return true;
-}
-
-void bsp_pwm_stop(bsp_pwm_t pwm)
-{
-    (void)pwm;
 }
 
 bool bsp_freq_get_capture(bsp_capture_t *capture)

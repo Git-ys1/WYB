@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../BSP/bsp_oled_smoke.h"
+#include "boot_splash_bitmap.h"
 #include "stm32g4xx_hal.h"
 
 #define APP_DISPLAY_FORCE_INIT_FAIL 0
@@ -135,4 +136,32 @@ app_err_t app_display_render_fault(uint8_t fault_code, uint8_t stage)
     (void)snprintf(lines[4], sizeof(lines[4]), "CHECK WIRING");
 
     return flush_lines(lines);
+}
+
+app_err_t app_display_show_boot_splash(void)
+{
+    if (s_state != DISP_READY) {
+        if (s_last_err == ERR_OK) {
+            s_last_err = ERR_HW_FAIL;
+        }
+        return s_last_err;
+    }
+
+    oled_smoke_fb_set_fullscreen_bitmap(k_boot_splash_bitmap_128x64);
+    if (!oled_smoke_flush_full()) {
+        s_last_err = map_diag_err();
+        s_state = DISP_FAULT;
+        return s_last_err;
+    }
+
+    HAL_Delay(2000u);
+    oled_smoke_fb_clear(0x00u);
+    if (!oled_smoke_flush_full()) {
+        s_last_err = map_diag_err();
+        s_state = DISP_FAULT;
+        return s_last_err;
+    }
+
+    s_last_err = ERR_OK;
+    return ERR_OK;
 }

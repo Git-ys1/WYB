@@ -16,5 +16,6 @@ bool app_display_ready(void);
 app_err_t app_display_last_err(void);
 app_err_t app_display_render(const app_ui_frame_t *frame);
 app_err_t app_display_render_fault(uint8_t fault_code, uint8_t stage);
+app_err_t app_display_show_boot_splash(void);
 
 #endif

@@ -8,8 +8,7 @@
 #include "bsp_config.h"
 
 typedef enum {
-    BSP_I2C_BUS_OLED = 2,
-    BSP_I2C_BUS_ADS = 3
+    BSP_I2C_BUS_OLED = 2
 } bsp_i2c_bus_t;
 
 typedef enum {
@@ -26,14 +25,9 @@ typedef enum {
     BSP_PIN_MODE_C,
     BSP_PIN_VOLT_A,
     BSP_PIN_VOLT_B,
-    BSP_PIN_KEY,
     BSP_PIN_BEEP,
     BSP_PIN_COUNT
 } bsp_pin_t;
-
-typedef enum {
-    BSP_PWM_BEEP = 0
-} bsp_pwm_t;
 
 typedef struct {
     uint32_t period_ticks;
@@ -79,9 +73,6 @@ uint32_t bsp_oled_bus_get_nack_count(void);
 
 void bsp_gpio_write(bsp_pin_t pin, bool level);
 bool bsp_gpio_read(bsp_pin_t pin);
-
-bool bsp_pwm_start(bsp_pwm_t pwm, uint32_t freq_hz, uint8_t duty_pct);
-void bsp_pwm_stop(bsp_pwm_t pwm);
 
 bool bsp_freq_get_capture(bsp_capture_t *capture);
 bool bsp_freq_capture_start(void);

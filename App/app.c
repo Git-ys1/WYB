@@ -29,6 +29,7 @@
 #define BEEP_FREQ_HZ 2700u
 #define DIODE_VF_DIRTY_DELTA_MV 8u
 #define DIODE_RAW_DIRTY_DELTA 16u
+#define APP_DEBUG_LEFT_KEY_ENABLE 1u
 
 #define KEY_SHORT_MIN_MS 15u
 
@@ -938,6 +939,7 @@ void app_init(void)
         bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
         bootdiag_set_stage(BOOT_FAULT);
     } else {
+        (void)app_display_show_boot_splash();
         bootdiag_set_fault(BOOT_FAULT_NONE);
         bootdiag_set_stage(BOOT_RUN);
     }
@@ -979,6 +981,7 @@ void app_poll_button(void)
             break;
 
         case KEY_LEFT:
+#if APP_DEBUG_LEFT_KEY_ENABLE
             if (evt.type == KEY_EVT_DOWN) {
                 g_app.left_long_fired = false;
             } else if (evt.type == KEY_EVT_LONG) {
@@ -990,10 +993,11 @@ void app_poll_button(void)
                 }
                 changed = true;
             }
+#endif
             break;
 
         default:
-            /* OK/BACK are dev-only in this phase; ignored by formal UI path. */
+            /* Formal build consumes only RIGHT (and optional LEFT debug toggle). */
             break;
         }
     }

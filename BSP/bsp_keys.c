@@ -31,10 +31,8 @@ typedef struct {
 } key_queue_t;
 
 static const key_pin_desc_t k_key_desc[KEY_COUNT] = {
-    [KEY_OK] = {GPIOC, GPIO_PIN_13},
-    [KEY_LEFT] = {GPIOB, GPIO_PIN_2},
     [KEY_RIGHT] = {GPIOB, GPIO_PIN_10},
-    [KEY_BACK] = {GPIOB, GPIO_PIN_11}
+    [KEY_LEFT] = {GPIOB, GPIO_PIN_2}
 };
 
 static key_state_t g_keys[KEY_COUNT];
@@ -75,16 +73,12 @@ void bsp_keys_init(void)
     uint8_t i;
 
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
 
     init.Mode = GPIO_MODE_INPUT;
     init.Pull = GPIO_PULLUP;
     init.Speed = GPIO_SPEED_FREQ_LOW;
 
-    init.Pin = GPIO_PIN_13;
-    HAL_GPIO_Init(GPIOC, &init);
-
-    init.Pin = GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_11;
+    init.Pin = GPIO_PIN_2 | GPIO_PIN_10;
     HAL_GPIO_Init(GPIOB, &init);
 
     memset(g_keys, 0, sizeof(g_keys));

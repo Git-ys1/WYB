@@ -5,10 +5,8 @@
 #include <stdint.h>
 
 typedef enum {
-    KEY_OK = 0,
+    KEY_RIGHT = 0,
     KEY_LEFT,
-    KEY_RIGHT,
-    KEY_BACK,
     KEY_COUNT
 } key_id_t;
 

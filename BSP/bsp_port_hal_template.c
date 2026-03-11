@@ -7,9 +7,7 @@
 #include "../Core/Inc/main.h"
 
 extern I2C_HandleTypeDef hi2c2;
-extern I2C_HandleTypeDef hi2c3;
 extern TIM_HandleTypeDef htim2;
-extern TIM_HandleTypeDef htim16;
 
 #define BEEP_CTRL_GPIO_Port GPIOB
 #define BEEP_CTRL_Pin GPIO_PIN_1
@@ -28,7 +26,6 @@ static const pin_desc_t k_pin_desc[BSP_PIN_COUNT] = {
     [BSP_PIN_MODE_C] = {CHANNLE_SELEC_C_GPIO_Port, CHANNLE_SELEC_C_Pin},
     [BSP_PIN_VOLT_A] = {VOLTAGE_MODE_A_GPIO_Port, VOLTAGE_MODE_A_Pin},
     [BSP_PIN_VOLT_B] = {VOLTAGE_MODE_B_GPIO_Port, VOLTAGE_MODE_B_Pin},
-    [BSP_PIN_KEY] = {KEY_GPIO_Port, KEY_Pin},
     [BSP_PIN_BEEP] = {BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin}
 };
 
@@ -43,21 +40,15 @@ static volatile uint32_t g_cap_last_ccr1;
 static volatile uint32_t g_cap_last_ccr2;
 static volatile uint32_t g_invalid_h_gt_p_count;
 static volatile uint8_t g_capture_start_ok;
-static volatile uint32_t g_key_edge_ms;
+static volatile uint32_t g_cap_period_accum_ticks;
+static volatile uint32_t g_cap_high_accum_ticks;
+static volatile uint8_t g_cap_accum_count;
 static uint8_t g_cap_started;
 
 static uint32_t g_tim2_clk_hz;
 static uint32_t g_tim2_tick_hz;
-
-typedef struct {
-    uint8_t enabled;
-    uint8_t level;
-    uint32_t half_period_ms;
-    uint32_t next_toggle_ms;
-} sw_pwm_t;
-
-static uint8_t g_pwm_hw_active;
-static sw_pwm_t g_sw_pwm;
+static uint32_t g_freq_no_sig_timeout_ms;
+static uint8_t g_freq_accum_cycles;
 static bsp_oled_bus_mode_t g_oled_bus_mode;
 static uint32_t g_oled_nack_count;
 static uint32_t g_oled_timeout_count;
@@ -68,29 +59,27 @@ static bsp_freq_profile_t g_freq_profile;
 #define I2C2_RECOVERY_PULSES 9u
 #define I2C2_RECOVERY_DELAY_NOP 64u
 #define SOFT_I2C_DELAY_NOP 96u
-#define FREQ_CAPTURE_TIMEOUT_MS 500u
 #define FREQ_SWAP_CCR_MAP 0
 
 typedef struct {
     uint32_t ic_prescaler;
     uint32_t ic_filter;
+    uint32_t no_sig_timeout_ms;
+    uint8_t accum_cycles;
 } freq_profile_cfg_t;
 
 static const freq_profile_cfg_t k_freq_profile_cfg[BSP_FREQ_PROFILE_COUNT] = {
-    [BSP_FREQ_PROFILE_20HZ] = {TIM_ICPSC_DIV1, 8u},
-    [BSP_FREQ_PROFILE_200HZ] = {TIM_ICPSC_DIV1, 4u},
-    [BSP_FREQ_PROFILE_2KHZ] = {TIM_ICPSC_DIV1, 1u},
-    [BSP_FREQ_PROFILE_20KHZ] = {TIM_ICPSC_DIV1, 0u},
-    [BSP_FREQ_PROFILE_200KHZ] = {TIM_ICPSC_DIV1, 0u}
+    [BSP_FREQ_PROFILE_20HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 8u, .no_sig_timeout_ms = 400u, .accum_cycles = 1u},
+    [BSP_FREQ_PROFILE_200HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 4u, .no_sig_timeout_ms = 250u, .accum_cycles = 1u},
+    [BSP_FREQ_PROFILE_2KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 1u, .no_sig_timeout_ms = 120u, .accum_cycles = 1u},
+    [BSP_FREQ_PROFILE_20KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 80u, .accum_cycles = 2u},
+    [BSP_FREQ_PROFILE_200KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 40u, .accum_cycles = 4u}
 };
 
 static I2C_HandleTypeDef *i2c_handle_from_bus(bsp_i2c_bus_t bus)
 {
     if (bus == BSP_I2C_BUS_OLED) {
         return &hi2c2;
-    }
-    if (bus == BSP_I2C_BUS_ADS) {
-        return &hi2c3;
     }
     return 0;
 }
@@ -104,47 +93,6 @@ static void beep_pin_to_gpio_output(void)
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(BEEP_CTRL_GPIO_Port, &init);
-}
-
-static void sw_pwm_stop(void)
-{
-    g_sw_pwm.enabled = 0u;
-    g_sw_pwm.level = 0u;
-    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* active-low mute */
-}
-
-static void sw_pwm_start(uint32_t freq_hz)
-{
-    uint32_t half_period_ms;
-
-    if (freq_hz == 0u) {
-        half_period_ms = 1u;
-    } else {
-        half_period_ms = 1000u / (freq_hz * 2u);
-        if (half_period_ms == 0u) {
-            half_period_ms = 1u;
-        }
-    }
-
-    beep_pin_to_gpio_output();
-    g_sw_pwm.enabled = 1u;
-    g_sw_pwm.level = 0u;
-    g_sw_pwm.half_period_ms = half_period_ms;
-    g_sw_pwm.next_toggle_ms = HAL_GetTick() + half_period_ms;
-    HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* start muted */
-}
-
-static void sw_pwm_update(uint32_t now_ms)
-{
-    if (!g_sw_pwm.enabled) {
-        return;
-    }
-
-    if ((int32_t)(now_ms - g_sw_pwm.next_toggle_ms) >= 0) {
-        g_sw_pwm.level ^= 1u;
-        HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, g_sw_pwm.level ? GPIO_PIN_RESET : GPIO_PIN_SET);
-        g_sw_pwm.next_toggle_ms = now_ms + g_sw_pwm.half_period_ms;
-    }
 }
 
 static uint32_t tim2_clock_hz(void)
@@ -478,15 +426,13 @@ void bsp_init(void)
     g_cap_last_ccr2 = 0u;
     g_invalid_h_gt_p_count = 0u;
     g_capture_start_ok = 0u;
-    g_key_edge_ms = 0u;
+    g_cap_period_accum_ticks = 0u;
+    g_cap_high_accum_ticks = 0u;
+    g_cap_accum_count = 0u;
     g_cap_started = 0u;
     g_freq_profile = BSP_FREQ_PROFILE_20HZ;
-
-    g_pwm_hw_active = 0u;
-    g_sw_pwm.enabled = 0u;
-    g_sw_pwm.level = 0u;
-    g_sw_pwm.half_period_ms = 1u;
-    g_sw_pwm.next_toggle_ms = 0u;
+    g_freq_no_sig_timeout_ms = k_freq_profile_cfg[BSP_FREQ_PROFILE_20HZ].no_sig_timeout_ms;
+    g_freq_accum_cycles = k_freq_profile_cfg[BSP_FREQ_PROFILE_20HZ].accum_cycles;
     beep_pin_to_gpio_output();
     HAL_GPIO_WritePin(BEEP_CTRL_GPIO_Port, BEEP_CTRL_Pin, GPIO_PIN_SET); /* default mute (active-low) */
     g_oled_bus_mode = BSP_OLED_BUS_HW_I2C2;
@@ -512,16 +458,12 @@ void bsp_init(void)
 
 uint32_t bsp_millis(void)
 {
-    uint32_t now = HAL_GetTick();
-    (void)g_key_edge_ms;
-    sw_pwm_update(now);
-    return now;
+    return HAL_GetTick();
 }
 
 void bsp_delay_ms(uint32_t delay_ms)
 {
     HAL_Delay(delay_ms);
-    sw_pwm_update(HAL_GetTick());
 }
 
 bool bsp_i2c_write(bsp_i2c_bus_t bus, uint8_t addr7, const uint8_t *data, uint16_t len, uint32_t timeout_ms)
@@ -683,53 +625,6 @@ bool bsp_gpio_read(bsp_pin_t pin)
     return HAL_GPIO_ReadPin(k_pin_desc[pin].port, k_pin_desc[pin].pin) == GPIO_PIN_SET;
 }
 
-bool bsp_pwm_start(bsp_pwm_t pwm, uint32_t freq_hz, uint8_t duty_pct)
-{
-    TIM_OC_InitTypeDef cfg = {0};
-    uint32_t pclk2;
-    uint32_t hclk;
-    uint32_t tim_clk;
-    uint32_t prescaler;
-    uint32_t period;
-
-    if ((pwm != BSP_PWM_BEEP) || (freq_hz == 0u)) {
-        return false;
-    }
-
-    if (duty_pct > 100u) {
-        duty_pct = 100u;
-    }
-
-    g_pwm_hw_active = 0u;
-    sw_pwm_stop();
-
-    (void)cfg;
-    (void)pclk2;
-    (void)hclk;
-    (void)tim_clk;
-    (void)prescaler;
-    (void)period;
-    (void)duty_pct;
-
-    /* PB1 beeper path: keep software PWM fallback only. */
-    sw_pwm_start(freq_hz);
-    return true;
-}
-
-void bsp_pwm_stop(bsp_pwm_t pwm)
-{
-    if (pwm != BSP_PWM_BEEP) {
-        return;
-    }
-
-    if (g_pwm_hw_active) {
-        (void)HAL_TIM_PWM_Stop(&htim16, TIM_CHANNEL_1);
-        g_pwm_hw_active = 0u;
-    }
-
-    sw_pwm_stop();
-}
-
 bool bsp_freq_get_capture(bsp_capture_t *capture)
 {
     uint32_t period_ticks;
@@ -752,7 +647,7 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
         return false;
     }
 
-    if ((HAL_GetTick() - last_ms) > FREQ_CAPTURE_TIMEOUT_MS) {
+    if ((HAL_GetTick() - last_ms) > g_freq_no_sig_timeout_ms) {
         return false;
     }
 
@@ -791,7 +686,16 @@ void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
     if ((profile == g_freq_profile) && g_cap_started) {
         return;
     }
-    (void)tim2_capture_apply_profile(profile);
+    if (tim2_capture_apply_profile(profile)) {
+        g_freq_no_sig_timeout_ms = k_freq_profile_cfg[profile].no_sig_timeout_ms;
+        g_freq_accum_cycles = k_freq_profile_cfg[profile].accum_cycles;
+        if (g_freq_accum_cycles == 0u) {
+            g_freq_accum_cycles = 1u;
+        }
+        g_cap_period_accum_ticks = 0u;
+        g_cap_high_accum_ticks = 0u;
+        g_cap_accum_count = 0u;
+    }
 }
 
 bool bsp_freq_get_diag(bsp_freq_diag_t *diag)
@@ -849,24 +753,33 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
     period_ticks = cap_period_from_ccr(ccr1, ccr2);
     high_ticks = cap_high_from_ccr(ccr1, ccr2);
 
-    g_cap_period_ticks = period_ticks;
-    g_cap_high_ticks = high_ticks;
-
     if ((period_ticks > 0u) && (high_ticks <= period_ticks)) {
-        g_cap_valid = 1u;
-        g_cap_last_ms = HAL_GetTick();
+        uint8_t accum_target = g_freq_accum_cycles;
+        if (accum_target == 0u) {
+            accum_target = 1u;
+        }
+
+        g_cap_period_accum_ticks += period_ticks;
+        g_cap_high_accum_ticks += high_ticks;
+        g_cap_accum_count++;
+
+        if (g_cap_accum_count >= accum_target) {
+            g_cap_period_ticks = g_cap_period_accum_ticks / g_cap_accum_count;
+            g_cap_high_ticks = g_cap_high_accum_ticks / g_cap_accum_count;
+            g_cap_valid = 1u;
+            g_cap_last_ms = HAL_GetTick();
+            g_cap_period_accum_ticks = 0u;
+            g_cap_high_accum_ticks = 0u;
+            g_cap_accum_count = 0u;
+        }
     } else {
         g_cap_valid = 0u;
+        g_cap_period_accum_ticks = 0u;
+        g_cap_high_accum_ticks = 0u;
+        g_cap_accum_count = 0u;
         if ((period_ticks > 0u) && (high_ticks > period_ticks)) {
             g_invalid_h_gt_p_count++;
         }
-    }
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin)
-{
-    if (gpio_pin == KEY_Pin) {
-        g_key_edge_ms = HAL_GetTick();
     }
 }
 
