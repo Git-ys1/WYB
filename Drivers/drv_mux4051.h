@@ -20,11 +20,14 @@ typedef enum {
     MUX_MODE_RES,         /* logical RES path */
     MUX_MODE_DIODE,       /* logical DIODE path */
     MUX_MODE_ONOFF,       /* logical CONT path (shared with RES this round) */
-    MUX_MODE_AC,          /* logical FREQ reserve path */
+    MUX_MODE_FREQ,        /* logical FREQ reserve path */
     MUX_MODE_CAP,
     MUX_MODE_RESERVED6,
     MUX_MODE_RESERVED7
 } mux_mode_channel_t;
+
+/* Legacy alias: keep one release to avoid broad refactor churn. */
+#define MUX_MODE_AC MUX_MODE_FREQ
 
 typedef enum {
     MUX_VOLT_2000MV = 0,

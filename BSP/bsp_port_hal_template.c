@@ -36,6 +36,13 @@ static volatile uint32_t g_cap_period_ticks;
 static volatile uint32_t g_cap_high_ticks;
 static volatile uint8_t g_cap_valid;
 static volatile uint32_t g_cap_last_ms;
+static volatile uint32_t g_tim2_irq_count;
+static volatile uint32_t g_cap_ch1_count;
+static volatile uint32_t g_cap_ch2_count;
+static volatile uint32_t g_cap_last_ccr1;
+static volatile uint32_t g_cap_last_ccr2;
+static volatile uint32_t g_invalid_h_gt_p_count;
+static volatile uint8_t g_capture_start_ok;
 static volatile uint32_t g_key_edge_ms;
 static uint8_t g_cap_started;
 
@@ -464,6 +471,13 @@ void bsp_init(void)
     g_cap_high_ticks = 0u;
     g_cap_valid = 0u;
     g_cap_last_ms = 0u;
+    g_tim2_irq_count = 0u;
+    g_cap_ch1_count = 0u;
+    g_cap_ch2_count = 0u;
+    g_cap_last_ccr1 = 0u;
+    g_cap_last_ccr2 = 0u;
+    g_invalid_h_gt_p_count = 0u;
+    g_capture_start_ok = 0u;
     g_key_edge_ms = 0u;
     g_cap_started = 0u;
     g_freq_profile = BSP_FREQ_PROFILE_20HZ;
@@ -754,9 +768,19 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
     return true;
 }
 
-void bsp_freq_capture_start(void)
+bool bsp_freq_capture_start(void)
 {
-    (void)tim2_capture_start();
+    bool ok;
+
+    g_tim2_irq_count = 0u;
+    g_cap_ch1_count = 0u;
+    g_cap_ch2_count = 0u;
+    g_cap_last_ccr1 = 0u;
+    g_cap_last_ccr2 = 0u;
+    g_invalid_h_gt_p_count = 0u;
+    ok = tim2_capture_start();
+    g_capture_start_ok = ok ? 1u : 0u;
+    return ok;
 }
 
 void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
@@ -768,6 +792,26 @@ void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
         return;
     }
     (void)tim2_capture_apply_profile(profile);
+}
+
+bool bsp_freq_get_diag(bsp_freq_diag_t *diag)
+{
+    if (diag == 0) {
+        return false;
+    }
+
+    __disable_irq();
+    diag->tim2_irq_count = g_tim2_irq_count;
+    diag->cap_ch1_count = g_cap_ch1_count;
+    diag->cap_ch2_count = g_cap_ch2_count;
+    diag->last_ccr1 = g_cap_last_ccr1;
+    diag->last_ccr2 = g_cap_last_ccr2;
+    diag->invalid_h_gt_p_count = g_invalid_h_gt_p_count;
+    diag->capture_start_ok = g_capture_start_ok;
+    diag->profile_idx = (uint8_t)g_freq_profile;
+    __enable_irq();
+
+    return true;
 }
 
 void bsp_debug_log(const char *msg)
@@ -791,8 +835,17 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
         return;
     }
 
+    g_tim2_irq_count++;
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+        g_cap_ch1_count++;
+    } else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
+        g_cap_ch2_count++;
+    }
+
     ccr1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
     ccr2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+    g_cap_last_ccr1 = ccr1;
+    g_cap_last_ccr2 = ccr2;
     period_ticks = cap_period_from_ccr(ccr1, ccr2);
     high_ticks = cap_high_from_ccr(ccr1, ccr2);
 
@@ -804,6 +857,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
         g_cap_last_ms = HAL_GetTick();
     } else {
         g_cap_valid = 0u;
+        if ((period_ticks > 0u) && (high_ticks > period_ticks)) {
+            g_invalid_h_gt_p_count++;
+        }
     }
 }
 

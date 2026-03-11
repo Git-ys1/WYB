@@ -95,13 +95,23 @@ bool bsp_freq_get_capture(bsp_capture_t *capture)
     return false;
 }
 
-void bsp_freq_capture_start(void)
+bool bsp_freq_capture_start(void)
 {
+    return false;
 }
 
 void bsp_freq_capture_set_profile(bsp_freq_profile_t profile)
 {
     (void)profile;
+}
+
+bool bsp_freq_get_diag(bsp_freq_diag_t *diag)
+{
+    if (diag == NULL) {
+        return false;
+    }
+    memset(diag, 0, sizeof(*diag));
+    return true;
 }
 
 void bsp_debug_log(const char *msg)

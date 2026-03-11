@@ -506,7 +506,7 @@ static void mode_next(void)
     if ((prev != MODE_FREQ) && (g_app.mode == MODE_FREQ)) {
         diode_drv_off();
         beep_continuous(false);
-        mux_set_mode(MUX_MODE_AC);
+        mux_set_mode(MUX_MODE_FREQ);
         bsp_freq_capture_set_profile(freq_profile_from_sel(g_app.freq_range_sel));
         freq_start();
         g_app.freq_hz = 0.0f;
@@ -813,7 +813,11 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.vdc.err);
     } else if (g_app.mode == MODE_FREQ) {
         bsp_capture_t cap = {0};
+        bsp_freq_diag_t diag = {0};
+        freq_debug_snapshot_t fdbg = {0};
         bool cap_ok = bsp_freq_get_capture(&cap) && cap.valid;
+        (void)bsp_freq_get_diag(&diag);
+        freq_get_debug_snapshot(&fdbg);
 
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE:%u RNG:%s",
                        (unsigned)mux_get_mode_phys_ch(),
@@ -828,21 +832,31 @@ static void build_debug_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "P:---- H:----");
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CLK:----");
         }
+        (void)snprintf(frame->line[4], sizeof(frame->line[4]), "IRQ:%lu C:%lu/%lu",
+                       (unsigned long)diag.tim2_irq_count,
+                       (unsigned long)diag.cap_ch1_count,
+                       (unsigned long)diag.cap_ch2_count);
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "C1:%lu C2:%lu",
+                       (unsigned long)diag.last_ccr1,
+                       (unsigned long)diag.last_ccr2);
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "INV:%lu ST:%u E:%u",
+                       (unsigned long)diag.invalid_h_gt_p_count,
+                       (unsigned)diag.capture_start_ok,
+                       (unsigned)g_app.freq_err);
         if (g_app.freq_err == ERR_OK) {
             uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
             uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
             if (duty_i > 100u) {
                 duty_i = 100u;
             }
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "F:%luHz", (unsigned long)hz_i);
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "D:%lu%%", (unsigned long)duty_i);
-            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:OK");
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "F:%lu D:%lu I:%u",
+                           (unsigned long)hz_i,
+                           (unsigned long)duty_i,
+                           (unsigned)fdbg.invalid_count);
         } else {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "F:----");
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "D:--%%");
-            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:NO SIG");
+            (void)snprintf(frame->line[7], sizeof(frame->line[7]), "NO SIG H:%u",
+                           (unsigned)fdbg.hist_count);
         }
-        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.freq_err);
     } else {
         if (g_app.dbg_raw_valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.dbg_raw_u16);

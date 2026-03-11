@@ -43,6 +43,17 @@ typedef struct {
     bool valid;
 } bsp_capture_t;
 
+typedef struct {
+    uint32_t tim2_irq_count;
+    uint32_t cap_ch1_count;
+    uint32_t cap_ch2_count;
+    uint32_t last_ccr1;
+    uint32_t last_ccr2;
+    uint32_t invalid_h_gt_p_count;
+    uint8_t capture_start_ok;
+    uint8_t profile_idx;
+} bsp_freq_diag_t;
+
 typedef enum {
     BSP_FREQ_PROFILE_20HZ = 0,
     BSP_FREQ_PROFILE_200HZ,
@@ -73,8 +84,9 @@ bool bsp_pwm_start(bsp_pwm_t pwm, uint32_t freq_hz, uint8_t duty_pct);
 void bsp_pwm_stop(bsp_pwm_t pwm);
 
 bool bsp_freq_get_capture(bsp_capture_t *capture);
-void bsp_freq_capture_start(void);
+bool bsp_freq_capture_start(void);
 void bsp_freq_capture_set_profile(bsp_freq_profile_t profile);
+bool bsp_freq_get_diag(bsp_freq_diag_t *diag);
 
 void bsp_debug_log(const char *msg);
 

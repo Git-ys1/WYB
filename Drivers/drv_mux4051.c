@@ -33,7 +33,7 @@ static uint8_t mode_to_phys_ch(mux_mode_channel_t mode)
         return 1u;
     case MUX_MODE_DIODE:
         return 2u;
-    case MUX_MODE_AC:
+    case MUX_MODE_FREQ:
         return 3u;
     default:
         return 1u;

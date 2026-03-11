@@ -227,6 +227,14 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `D: xx%`
   - 无信号显示 `NO SIG`。
 
+## T-1.5.2-R1 FREQ定位与清理审计
+- 本轮只修 FREQ，不改 `RES/DIODE/CONT` 算法与显示语义。
+- `MUX_MODE_FREQ` 为正式语义名；`MUX_MODE_AC` 仅保留临时兼容别名。
+- FREQ debug 页优先展示链路诊断：`MODE/P/H/CLK/IRQ/CCR/INV/F/D/ERR`，先定位链路层级再动算法。
+- 本轮清理仅做审计，不删链路；详见：
+  - [t1.5.2_truth_freeze.md](/F:/CodeForge/STM32CubeIDE_2.1.0/WorkSpace3/WYB/docs/t1.5.2_truth_freeze.md)
+  - [t1.5.2_cleanup_audit.md](/F:/CodeForge/STM32CubeIDE_2.1.0/WorkSpace3/WYB/docs/t1.5.2_cleanup_audit.md)
+
 ## T-1.1.5E-R1 历史说明
 - `T-1.1.5E-R1` 的 smoke 主分流策略已被 `T-1.1.5F-R1` 统一显示架构替代。
 - 当前实验分支：`exp/ui-unify-r1`。
@@ -250,7 +258,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `LEFT=PB2`
   - `RIGHT=PB10`
   - `BACK=PB11`
-- 正式运行逻辑仅消费 `LEFT/RIGHT`；`OK/BACK` 保留为 dev-only。
+- 正式运行逻辑仅消费 `LEFT/RIGHT`；`OK/BACK` 保留为 dev-only（后续按审计清单决定是否删除扫描链）。
 
 ## 主循环（保持不变）
 ```c

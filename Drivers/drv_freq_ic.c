@@ -12,6 +12,8 @@ static float g_duty_hist[FREQ_HIST_SIZE];
 static uint8_t g_hist_w;
 static uint8_t g_hist_count;
 static uint8_t g_invalid_count;
+static bool g_capture_start_ok;
+static freq_debug_snapshot_t g_freq_dbg;
 
 static void hist_push(float hz, float duty)
 {
@@ -68,7 +70,13 @@ void freq_start(void)
     g_hist_w = 0u;
     g_hist_count = 0u;
     g_invalid_count = 0u;
-    bsp_freq_capture_start();
+    g_capture_start_ok = bsp_freq_capture_start();
+    g_freq_dbg.inst_hz = 0.0f;
+    g_freq_dbg.inst_duty = 0.0f;
+    g_freq_dbg.hist_count = 0u;
+    g_freq_dbg.invalid_count = 0u;
+    g_freq_dbg.capture_start_ok = g_capture_start_ok;
+    g_freq_dbg.last_err = g_capture_start_ok ? ERR_OK : ERR_HW_FAIL;
 }
 
 app_err_t freq_get(float *hz, float *duty_pct)
@@ -87,10 +95,15 @@ app_err_t freq_get(float *hz, float *duty_pct)
         if (g_invalid_count < 0xFFu) {
             g_invalid_count++;
         }
+        g_freq_dbg.invalid_count = g_invalid_count;
+        g_freq_dbg.hist_count = g_hist_count;
+        g_freq_dbg.capture_start_ok = g_capture_start_ok;
         if ((g_invalid_count < FREQ_INVALID_LIMIT) && (g_hist_count > 0u)) {
             hist_average(FREQ_HIST_SIZE, hz, duty_pct);
+            g_freq_dbg.last_err = ERR_OK;
             return ERR_OK;
         }
+        g_freq_dbg.last_err = ERR_NO_SIGNAL;
         return ERR_NO_SIGNAL;
     }
 
@@ -108,6 +121,12 @@ app_err_t freq_get(float *hz, float *duty_pct)
     hist_push(inst_hz, inst_duty);
     window = selected_window(inst_hz);
     hist_average(window, hz, duty_pct);
+    g_freq_dbg.inst_hz = inst_hz;
+    g_freq_dbg.inst_duty = inst_duty;
+    g_freq_dbg.hist_count = g_hist_count;
+    g_freq_dbg.invalid_count = g_invalid_count;
+    g_freq_dbg.capture_start_ok = g_capture_start_ok;
+    g_freq_dbg.last_err = ERR_OK;
 
     return ERR_OK;
 }
@@ -122,5 +141,13 @@ app_err_t freq_get_duty(float *duty_pct)
 {
     float dummy_hz;
     return freq_get(&dummy_hz, duty_pct);
+}
+
+void freq_get_debug_snapshot(freq_debug_snapshot_t *out)
+{
+    if (out == NULL) {
+        return;
+    }
+    *out = g_freq_dbg;
 }
 

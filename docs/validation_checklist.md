@@ -1,5 +1,15 @@
 # T-1.1.4I Validation Checklist
 
+## T-1.5.2-R1 FREQ-Only Fix + Cleanup Audit
+- [ ] `F52-TRUTH-01`: 真相冻结文档已落地（`CH3=FREQ`, `PA0 TIM2_CH1`, `PB1 beep`, `PB0 diode`）。
+- [ ] `F52-MODE-01`: FREQ 进入后 `MODE` 稳定显示物理 `CH3`。
+- [ ] `F52-CAP-01`: 1kHz/50% 输入下 `IRQ/CH1/CH2` 计数递增。
+- [ ] `F52-CCR-01`: Debug 页可见 `CCR1/CCR2` 与 `invalid_h_gt_p_count`。
+- [ ] `F52-CAP-02`: `P/H/CLK` 有效时，主页面 `F/D` 可出值；无效时显示 `NO SIG`。
+- [ ] `F52-MAP-01`: 若 `H>P` 频发，按 `FREQ_SWAP_CCR_MAP` 验证映射并记录结论。
+- [ ] `F52-REG-01`: 不回归 `RES/DIODE/CONT`，OLED 5 分钟稳定。
+- [ ] `F52-AUDIT-01`: 清理审计表已输出（retain/rename/delete-later），本轮无实际删除。
+
 ## T-1.5.0-R1 MODE_FREQ Frequency + Duty
 - [ ] `F50-MODE-01`: 可进入 `MODE_FREQ`，RIGHT 短按可切 `20/200/2k/20k/200k` 五档。
 - [ ] `F50-NOSIG-01`: 开路输入时显示 `NO SIG`，不死机不卡键。
