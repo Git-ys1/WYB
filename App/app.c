@@ -41,6 +41,10 @@
 #define FREQ_UI_STALL_MS 1200u
 #define FREQ_MEAS_ALIVE_MS 300u
 #define FREQ_RECOVERY_CONFIRM_MS 800u
+#define FREQ_MAIN_DEADBAND_PCT 0.002f
+#define FREQ_MAIN_DUTY_DEADBAND 1.0f
+#define RES_MAIN_DEADBAND_PCT 0.002f
+#define RES_MAIN_MIN_LSD_OHM 1.0f
 
 #define KEY_SHORT_MIN_MS 15u
 
@@ -80,6 +84,11 @@ struct app_ctx_s {
     float freq_duty;
     bool freq_have_valid;
     app_err_t freq_err;
+    float freq_shown_hz;
+    float freq_shown_duty;
+    app_err_t freq_shown_err;
+    uint8_t freq_shown_active_range;
+    bool freq_shown_inited;
     uint32_t freq_enter_ms;
     uint32_t freq_last_measure_ms;
     uint32_t freq_last_flush_ok_ms;
@@ -118,8 +127,20 @@ struct app_ctx_s {
     cont_result_t cont;
     vdc_ctx_t vdc_ctx;
     vdc_result_t vdc;
+    uint32_t vdc_shown_vin_mv;
+    vdc_status_t vdc_shown_status;
+    uint8_t vdc_shown_range;
+    app_err_t vdc_shown_err;
+    bool vdc_shown_inited;
     diode_ctx_t diode_ctx;
     diode_latched_result_t diode;
+    float res_shown_r_ohm;
+    uint8_t res_shown_range_sel;
+    uint8_t res_shown_locked_sel;
+    app_err_t res_shown_calc_err;
+    char res_shown_line_value[22];
+    char res_shown_line_stat[22];
+    bool res_shown_inited;
 
     uint32_t next_meas_ms;
     uint32_t next_ui_ms;
@@ -200,6 +221,106 @@ static void range_next_noop(app_ctx_t *ctx)
     (void)ctx;
 }
 
+static float app_absf(float value)
+{
+    return (value < 0.0f) ? -value : value;
+}
+
+static void res_mark_dirty(app_ctx_t *ctx)
+{
+    bool changed = (ctx->view == VIEW_RUN_DEBUG);
+    uint8_t locked_sel;
+
+    if (ctx == NULL) {
+        return;
+    }
+
+    locked_sel = (ctx->res_range_sel == RES_RANGE_SEL_AUTO) ? ctx->res_auto.locked_range_sel : ctx->res_range_sel;
+
+    if (!ctx->res_shown_inited) {
+        changed = true;
+    }
+
+    if ((ctx->res_shown_range_sel != ctx->res_range_sel) ||
+        (ctx->res_shown_locked_sel != locked_sel) ||
+        (ctx->res_shown_calc_err != ctx->res_calc_err)) {
+        changed = true;
+    }
+
+    if (strcmp(ctx->res_shown_line_stat, ctx->res_disp.line_stat) != 0) {
+        changed = true;
+    }
+
+    if (ctx->res_calc_ok && (ctx->res_calc_err == ERR_OK) &&
+        ctx->res_shown_inited && (ctx->res_shown_calc_err == ERR_OK)) {
+        float threshold = app_absf(ctx->res_shown_r_ohm) * RES_MAIN_DEADBAND_PCT;
+        if (threshold < RES_MAIN_MIN_LSD_OHM) {
+            threshold = RES_MAIN_MIN_LSD_OHM;
+        }
+        if (app_absf(ctx->res_r_calc_ohm - ctx->res_shown_r_ohm) >= threshold) {
+            changed = true;
+        }
+    } else if (strcmp(ctx->res_shown_line_value, ctx->res_disp.line_value) != 0) {
+        changed = true;
+    }
+
+    if (!changed) {
+        return;
+    }
+
+    (void)snprintf(ctx->res_shown_line_value, sizeof(ctx->res_shown_line_value), "%s", ctx->res_disp.line_value);
+    (void)snprintf(ctx->res_shown_line_stat, sizeof(ctx->res_shown_line_stat), "%s", ctx->res_disp.line_stat);
+    ctx->res_shown_r_ohm = ctx->res_r_calc_ohm;
+    ctx->res_shown_range_sel = ctx->res_range_sel;
+    ctx->res_shown_locked_sel = locked_sel;
+    ctx->res_shown_calc_err = ctx->res_calc_err;
+    ctx->res_shown_inited = true;
+    ctx->ui_dirty = true;
+}
+
+static void vdc_mark_dirty(app_ctx_t *ctx)
+{
+    bool changed = (ctx->view == VIEW_RUN_DEBUG);
+    uint32_t delta;
+    uint32_t lsd;
+
+    if (ctx == NULL) {
+        return;
+    }
+
+    if (!ctx->vdc_shown_inited) {
+        changed = true;
+    }
+
+    if ((ctx->vdc_shown_status != ctx->vdc.status) ||
+        (ctx->vdc_shown_range != (uint8_t)ctx->vdc.range) ||
+        (ctx->vdc_shown_err != ctx->vdc.err)) {
+        changed = true;
+    }
+
+    if (ctx->vdc.valid && (ctx->vdc.status == VDC_STAT_OK) && ctx->vdc_shown_inited &&
+        (ctx->vdc_shown_status == VDC_STAT_OK)) {
+        lsd = (ctx->vdc.range == VDC_RANGE_2000MV) ? 1u : 10u;
+        delta = (ctx->vdc.vin_mv >= ctx->vdc_shown_vin_mv)
+            ? (ctx->vdc.vin_mv - ctx->vdc_shown_vin_mv)
+            : (ctx->vdc_shown_vin_mv - ctx->vdc.vin_mv);
+        if (delta >= lsd) {
+            changed = true;
+        }
+    }
+
+    if (!changed) {
+        return;
+    }
+
+    ctx->vdc_shown_vin_mv = ctx->vdc.vin_mv;
+    ctx->vdc_shown_status = ctx->vdc.status;
+    ctx->vdc_shown_range = (uint8_t)ctx->vdc.range;
+    ctx->vdc_shown_err = ctx->vdc.err;
+    ctx->vdc_shown_inited = true;
+    ctx->ui_dirty = true;
+}
+
 static void ui_update_debug_adc_sample(void)
 {
     app_err_t err;
@@ -267,7 +388,7 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
             ctx->res_calc_err = err;
             ctx->res_r_calc_ohm = 0.0f;
             res_format_display(&ctx->res_binding, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
-            ctx->ui_dirty = true;
+            res_mark_dirty(ctx);
             return;
         }
 
@@ -280,7 +401,7 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
         ctx->res_calc_err = ctx->res_auto.calc_err;
         ctx->res_r_calc_ohm = ctx->res_auto.r_calc_ohm;
         ctx->res_disp = ctx->res_auto.disp;
-        ctx->ui_dirty = true;
+        res_mark_dirty(ctx);
         return;
     }
 
@@ -294,7 +415,7 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
         ctx->res_calc_err = ERR_INVALID_ARG;
         ctx->res_r_calc_ohm = 0.0f;
         res_format_display(NULL, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
-        ctx->ui_dirty = true;
+        res_mark_dirty(ctx);
         return;
     }
 
@@ -306,7 +427,7 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
         ctx->res_calc_err = err;
         ctx->res_r_calc_ohm = 0.0f;
         res_format_display(&ctx->res_binding, &ctx->res_sample, false, false, 0.0f, &ctx->res_disp);
-        ctx->ui_dirty = true;
+        res_mark_dirty(ctx);
         return;
     }
 
@@ -341,7 +462,7 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
             (void)snprintf(ctx->res_disp.line_stat, sizeof(ctx->res_disp.line_stat), "STAT: %s", ctx->res_disp.stat_str);
         }
     }
-    ctx->ui_dirty = true;
+    res_mark_dirty(ctx);
 }
 
 static void vdc_auto_track(app_ctx_t *ctx)
@@ -437,18 +558,54 @@ static void measure_tick_freq(app_ctx_t *ctx, uint32_t now_ms)
     float hz = 0.0f;
     float duty = 0.0f;
     app_err_t err;
-
-    (void)now_ms;
+    uint8_t active_sel;
+    bool changed = (ctx->view == VIEW_RUN_DEBUG);
 
     err = freq_get(&hz, &duty);
     ctx->freq_err = err;
     ctx->freq_last_measure_ms = now_ms;
+    active_sel = freq_get_active_range_sel();
     if (err == ERR_OK) {
         ctx->freq_hz = hz;
         ctx->freq_duty = duty;
         ctx->freq_have_valid = true;
     }
 
+    if (!ctx->freq_shown_inited) {
+        changed = true;
+    }
+
+    if ((ctx->freq_shown_err != ctx->freq_err) ||
+        (ctx->freq_shown_active_range != active_sel)) {
+        changed = true;
+    }
+
+    if ((ctx->freq_err == ERR_OK) && ctx->freq_shown_inited && (ctx->freq_shown_err == ERR_OK)) {
+        float hz_threshold = app_absf(ctx->freq_shown_hz) * FREQ_MAIN_DEADBAND_PCT;
+        if (hz_threshold < 1.0f) {
+            hz_threshold = 1.0f;
+        }
+        if (app_absf(ctx->freq_hz - ctx->freq_shown_hz) >= hz_threshold) {
+            changed = true;
+        }
+        if (app_absf(ctx->freq_duty - ctx->freq_shown_duty) >= FREQ_MAIN_DUTY_DEADBAND) {
+            changed = true;
+        }
+    } else if (ctx->freq_err == ERR_OK) {
+        changed = true;
+    }
+
+    if (!changed) {
+        /* Main-view deadband: no flush needed this cycle, keep recovery watchdog calm. */
+        ctx->freq_last_flush_ok_ms = now_ms;
+        return;
+    }
+
+    ctx->freq_shown_hz = ctx->freq_hz;
+    ctx->freq_shown_duty = ctx->freq_duty;
+    ctx->freq_shown_err = ctx->freq_err;
+    ctx->freq_shown_active_range = active_sel;
+    ctx->freq_shown_inited = true;
     ctx->ui_dirty = true;
 }
 
@@ -461,7 +618,7 @@ static void measure_tick_vdc(app_ctx_t *ctx, uint32_t now_ms)
         ctx->vdc.valid = false;
         ctx->vdc.status = VDC_STAT_ERR;
         ctx->vdc.err = err;
-        ctx->ui_dirty = true;
+        vdc_mark_dirty(ctx);
         return;
     }
 
@@ -473,7 +630,7 @@ static void measure_tick_vdc(app_ctx_t *ctx, uint32_t now_ms)
     }
 
     vdc_auto_track(ctx);
-    ctx->ui_dirty = true;
+    vdc_mark_dirty(ctx);
 }
 
 static void measure_tick_diode(app_ctx_t *ctx, uint32_t now_ms)

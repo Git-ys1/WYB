@@ -69,8 +69,8 @@ typedef struct {
 } freq_profile_cfg_t;
 
 static const freq_profile_cfg_t k_freq_profile_cfg[BSP_FREQ_PROFILE_COUNT] = {
-    [BSP_FREQ_PROFILE_20HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 8u, .no_sig_timeout_ms = 400u, .accum_cycles = 1u},
-    [BSP_FREQ_PROFILE_200HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 4u, .no_sig_timeout_ms = 250u, .accum_cycles = 1u},
+    [BSP_FREQ_PROFILE_20HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 8u, .no_sig_timeout_ms = 400u, .accum_cycles = 4u},
+    [BSP_FREQ_PROFILE_200HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 4u, .no_sig_timeout_ms = 250u, .accum_cycles = 2u},
     [BSP_FREQ_PROFILE_2KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 1u, .no_sig_timeout_ms = 120u, .accum_cycles = 1u},
     [BSP_FREQ_PROFILE_20KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 60u, .accum_cycles = 1u},
     [BSP_FREQ_PROFILE_200KHZ] = {.ic_prescaler = TIM_ICPSC_DIV2, .ic_filter = 0u, .no_sig_timeout_ms = 25u, .accum_cycles = 1u}
@@ -171,7 +171,7 @@ static void tim2_capture_reset_snapshot(void)
 static void tim2_capture_stop(void)
 {
     (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
-    (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_2);
+    (void)HAL_TIM_IC_Stop(&htim2, TIM_CHANNEL_2);
     g_cap_started = 0u;
 }
 
@@ -187,7 +187,7 @@ static bool tim2_capture_start(void)
     if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1) != HAL_OK) {
         return false;
     }
-    if (HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2) != HAL_OK) {
+    if (HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2) != HAL_OK) {
         (void)HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
         return false;
     }
@@ -770,17 +770,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
         return;
     }
 
-    if ((htim->Channel != HAL_TIM_ACTIVE_CHANNEL_1) &&
-        (htim->Channel != HAL_TIM_ACTIVE_CHANNEL_2)) {
+    if (htim->Channel != HAL_TIM_ACTIVE_CHANNEL_1) {
         return;
     }
 
     g_tim2_irq_count++;
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-        g_cap_ch1_count++;
-    } else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-        g_cap_ch2_count++;
-    }
+    g_cap_ch1_count++;
 
     ccr1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
     ccr2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);

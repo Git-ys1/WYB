@@ -58,3 +58,14 @@
 - [ ] `R3-FREQ-03`: 高频异常场景下可触发一级显示链恢复；恢复失败时每次进入 FREQ 最多软复位 1 次。
 - [ ] `R3-FREQ-04`: 开路仍显示 `NO SIG`，正常信号下频率/占空比可恢复显示。
 - [ ] `R3-REG-01`: `RES/DIODE/CONT` 行为无回归，非 CONT 模式无持续蜂鸣。
+
+## T-1.6.2-R3 Hotfix（FREQ 高频减负 + 主界面显示死区）
+- [ ] `R3F-BASE-01`: `SystemClock_Config` 维持 `HSI 16MHz + PLL_NONE`，I2C2 16MHz 口径不变。
+- [ ] `R3F-CAP-01`: TIM2 仅 `CH1` 走 `HAL_TIM_IC_Start_IT`，`CH2` 走 `HAL_TIM_IC_Start`。
+- [ ] `R3F-CAP-02`: `HAL_TIM_IC_CaptureCallback` 仅在 `HAL_TIM_ACTIVE_CHANNEL_1` 分支处理。
+- [ ] `R3F-PROFILE-01`: `accum_cycles` 分档生效：`20Hz=4, 200Hz=2, 2k/20k/200k=1`。
+- [ ] `R3F-DBG-01`: 1kHz/50% 下 `IRQ/C1/C2/P/H/CLK` 可诊断且 `invalid_h_gt_p_count` 不持续飙升。
+- [ ] `R3F-STAB-01`: 10k/11k/12k/15k 输入下主界面不假死，心跳不被拖垮。
+- [ ] `R3F-DEADBAND-01`: 主界面抖动下降，Debug 页仍实时显示原始值。
+- [ ] `R3F-DEADBAND-02`: 档位变化、AUTO 切档、`NO SIG/OL/OVER` 进出可立即刷新。
+- [ ] `R3F-REG-01`: `RES/DIODE/CONT/VDC` 无回归，非 CONT 模式无持续蜂鸣。

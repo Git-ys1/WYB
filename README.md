@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.6.2-R1）
+# WYB 提交态固件（T-1.6.2-R3）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -30,6 +30,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - `FREQ`：主链已冻结，默认档位为 `AUTO`；手动档越档主值直接显示 `OL`，并增加卡屏两级恢复（先重置显示链，失败后单次软复位）。
 - `VDC`：新增 `AUTO`（默认档），在 `AUTO/2000mV/20V` 之间可切换，自动切档采用迟滞与投票；`20V` 档精度问题仍为已知项。
 
+## T-1.6.2-R3 高频减负口径
+- 时钟维持 `HSI 16MHz + PLL_NONE`，不做 170MHz 升频。
+- TIM2 捕获减负：`CH1=IC中断`、`CH2=IC非中断轮询读取`，回调只处理 CH1。
+- 频率 profile 累计收敛：
+  - `20Hz=4`、`200Hz=2`、`2k/20k/200k=1`。
+- 主界面新增显示死区（Debug 页仍实时）：
+  - `FREQ`: `max(0.2%, 1Hz)`
+  - `Duty`: `1%`
+  - `VDC`: `1 LSD`
+  - `RES`: `max(0.2%, 1 LSD)`
+- 立即刷新条件：档位变化、AUTO 切档、状态/错误变化、`NO SIG/OL/OVER` 进出。
+
 ## FREQ 热修框架位（已预留）
 `bsp_freq_capture_set_profile()` 对每档位支持：
 - `icpsc`
@@ -38,10 +50,10 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 后续频率优化仅允许调整 profile 与 `drv_freq_ic` 模块内判定，不再改主循环或重走新测量路线。
 
-## T-1.6.2-R1 热修范围
+## T-1.6.2-R1/R2/R3 热修范围
 - 仅包含：`boot_splash_bitmap` 重画 + VDC 默认 `AUTO` + FREQ 越档 `OL` 与两级恢复。
 - FREQ 仍固定：`PA0(TIM2_CH1) -> TIM2 capture -> BSP ticks -> drv_freq_ic -> app`。
-- 未改主循环、未新增第二显示链、未新增第二频率链。
+- R3 仅增加 TIM2 捕获减负与主界面死区，不改主循环、不中断主链。
 
 ## 文档入口
 - 提交态真相冻结：`docs/T-1.5.5_truth_freeze.md`
