@@ -21,6 +21,7 @@
 #include "app_display_service.h"
 #include "app_types.h"
 #include "app_ui_presenter.h"
+#include "stm32g4xx_hal.h"
 
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
@@ -30,6 +31,16 @@
 #define DIODE_VF_DIRTY_DELTA_MV 8u
 #define DIODE_RAW_DIRTY_DELTA 16u
 #define APP_DEBUG_LEFT_KEY_ENABLE 1u
+#define VDC_UI_SEL_AUTO 0u
+#define VDC_UI_SEL_2000MV 1u
+#define VDC_UI_SEL_20V 2u
+#define VDC_UI_SEL_COUNT 3u
+#define VDC_AUTO_UP_MV 1800u
+#define VDC_AUTO_DOWN_MV 1500u
+#define VDC_AUTO_VOTE_NEED 2u
+#define FREQ_UI_STALL_MS 1200u
+#define FREQ_MEAS_ALIVE_MS 300u
+#define FREQ_RECOVERY_CONFIRM_MS 800u
 
 #define KEY_SHORT_MIN_MS 15u
 
@@ -37,6 +48,11 @@ typedef enum {
     VIEW_RUN_MAIN = 0,
     VIEW_RUN_DEBUG
 } app_view_t;
+
+typedef enum {
+    FREQ_RECOVER_IDLE = 0,
+    FREQ_RECOVER_WAIT_CONFIRM
+} freq_recover_state_t;
 
 typedef struct app_ctx_s app_ctx_t;
 typedef const char *(*mode_range_name_fn_t)(const app_ctx_t *ctx);
@@ -56,11 +72,20 @@ struct app_ctx_s {
 
     uint8_t res_range_sel;
     uint8_t vdc_range_sel;
+    uint8_t vdc_ui_sel;
+    uint8_t vdc_auto_vote_up;
+    uint8_t vdc_auto_vote_down;
     uint8_t freq_range_sel;
     float freq_hz;
     float freq_duty;
     bool freq_have_valid;
     app_err_t freq_err;
+    uint32_t freq_enter_ms;
+    uint32_t freq_last_measure_ms;
+    uint32_t freq_last_flush_ok_ms;
+    uint32_t freq_recover_deadline_ms;
+    freq_recover_state_t freq_recover_state;
+    bool freq_reset_used_this_entry;
 
     bool right_long_fired;
     bool left_long_fired;
@@ -105,6 +130,7 @@ struct app_ctx_s {
 static app_ctx_t g_app;
 
 static const char *k_vdc_name[VDC_RANGE_COUNT] = {"2000mV", "20V"};
+static const char *k_vdc_active_short[VDC_RANGE_COUNT] = {"2V", "20V"};
 static const char *k_freq_name[FREQ_RANGE_COUNT] = {"AUTO", "20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
 
 static const char *range_name_res(const app_ctx_t *ctx)
@@ -115,6 +141,11 @@ static const char *range_name_res(const app_ctx_t *ctx)
 static const char *range_name_vdc(const app_ctx_t *ctx)
 {
     return k_vdc_name[ctx->vdc_range_sel % VDC_RANGE_COUNT];
+}
+
+static const char *vdc_active_short_name(const app_ctx_t *ctx)
+{
+    return k_vdc_active_short[ctx->vdc_range_sel % VDC_RANGE_COUNT];
 }
 
 static const char *range_name_freq(const app_ctx_t *ctx)
@@ -141,7 +172,18 @@ static void range_next_res(app_ctx_t *ctx)
 
 static void range_next_vdc(app_ctx_t *ctx)
 {
-    ctx->vdc_range_sel = (uint8_t)((ctx->vdc_range_sel + 1u) % VDC_RANGE_COUNT);
+    if (ctx->vdc_ui_sel == VDC_UI_SEL_AUTO) {
+        ctx->vdc_ui_sel = VDC_UI_SEL_2000MV;
+        ctx->vdc_range_sel = VDC_RANGE_2000MV;
+    } else if (ctx->vdc_ui_sel == VDC_UI_SEL_2000MV) {
+        ctx->vdc_ui_sel = VDC_UI_SEL_20V;
+        ctx->vdc_range_sel = VDC_RANGE_20V;
+    } else {
+        ctx->vdc_ui_sel = VDC_UI_SEL_AUTO;
+        ctx->vdc_range_sel = VDC_RANGE_2000MV;
+    }
+    ctx->vdc_auto_vote_up = 0u;
+    ctx->vdc_auto_vote_down = 0u;
     vdc_set_range(&ctx->vdc_ctx, (vdc_range_t)ctx->vdc_range_sel);
 }
 
@@ -302,6 +344,94 @@ static void measure_tick_res(app_ctx_t *ctx, uint32_t now_ms)
     ctx->ui_dirty = true;
 }
 
+static void vdc_auto_track(app_ctx_t *ctx)
+{
+    if ((ctx->vdc_ui_sel != VDC_UI_SEL_AUTO) || !ctx->vdc.valid) {
+        ctx->vdc_auto_vote_up = 0u;
+        ctx->vdc_auto_vote_down = 0u;
+        return;
+    }
+
+    if (ctx->vdc_range_sel == VDC_RANGE_2000MV) {
+        if ((ctx->vdc.status == VDC_STAT_OL) || (ctx->vdc.vin_mv > VDC_AUTO_UP_MV)) {
+            if (ctx->vdc_auto_vote_up < 0xFFu) {
+                ctx->vdc_auto_vote_up++;
+            }
+        } else {
+            ctx->vdc_auto_vote_up = 0u;
+        }
+        ctx->vdc_auto_vote_down = 0u;
+
+        if (ctx->vdc_auto_vote_up >= VDC_AUTO_VOTE_NEED) {
+            ctx->vdc_range_sel = VDC_RANGE_20V;
+            ctx->vdc_auto_vote_up = 0u;
+            ctx->vdc_auto_vote_down = 0u;
+            vdc_set_range(&ctx->vdc_ctx, (vdc_range_t)ctx->vdc_range_sel);
+            ctx->ui_dirty = true;
+        }
+    } else {
+        if ((ctx->vdc.status == VDC_STAT_OK) && (ctx->vdc.vin_mv < VDC_AUTO_DOWN_MV)) {
+            if (ctx->vdc_auto_vote_down < 0xFFu) {
+                ctx->vdc_auto_vote_down++;
+            }
+        } else {
+            ctx->vdc_auto_vote_down = 0u;
+        }
+        ctx->vdc_auto_vote_up = 0u;
+
+        if (ctx->vdc_auto_vote_down >= VDC_AUTO_VOTE_NEED) {
+            ctx->vdc_range_sel = VDC_RANGE_2000MV;
+            ctx->vdc_auto_vote_up = 0u;
+            ctx->vdc_auto_vote_down = 0u;
+            vdc_set_range(&ctx->vdc_ctx, (vdc_range_t)ctx->vdc_range_sel);
+            ctx->ui_dirty = true;
+        }
+    }
+}
+
+static void freq_recovery_tick(uint32_t now_ms)
+{
+    if (g_app.mode != MODE_FREQ) {
+        g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+        return;
+    }
+
+    if ((bootdiag_get_stage() != BOOT_RUN) || (bootdiag_get_fault() != BOOT_FAULT_NONE)) {
+        return;
+    }
+
+    if ((now_ms - g_app.freq_last_measure_ms) > FREQ_MEAS_ALIVE_MS) {
+        return;
+    }
+
+    if (g_app.freq_recover_state == FREQ_RECOVER_WAIT_CONFIRM) {
+        if ((now_ms - g_app.freq_last_flush_ok_ms) <= UI_REFRESH_MS) {
+            g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+            return;
+        }
+
+        if ((int32_t)(now_ms - g_app.freq_recover_deadline_ms) < 0) {
+            return;
+        }
+
+        if (!g_app.freq_reset_used_this_entry) {
+            g_app.freq_reset_used_this_entry = true;
+            NVIC_SystemReset();
+        }
+        return;
+    }
+
+    if ((now_ms - g_app.freq_last_flush_ok_ms) <= FREQ_UI_STALL_MS) {
+        return;
+    }
+
+    g_app.presenter_err = app_ui_presenter_init();
+    g_app.ui_dirty = true;
+    g_app.next_ui_ms = now_ms;
+    g_app.freq_recover_state = FREQ_RECOVER_WAIT_CONFIRM;
+    g_app.freq_recover_deadline_ms = now_ms + FREQ_RECOVERY_CONFIRM_MS;
+}
+
 static void measure_tick_freq(app_ctx_t *ctx, uint32_t now_ms)
 {
     float hz = 0.0f;
@@ -312,6 +442,7 @@ static void measure_tick_freq(app_ctx_t *ctx, uint32_t now_ms)
 
     err = freq_get(&hz, &duty);
     ctx->freq_err = err;
+    ctx->freq_last_measure_ms = now_ms;
     if (err == ERR_OK) {
         ctx->freq_hz = hz;
         ctx->freq_duty = duty;
@@ -341,6 +472,7 @@ static void measure_tick_vdc(app_ctx_t *ctx, uint32_t now_ms)
         ctx->vdc.err = err;
     }
 
+    vdc_auto_track(ctx);
     ctx->ui_dirty = true;
 }
 
@@ -455,6 +587,7 @@ static const mode_desc_t *active_mode_desc(void)
 static void mode_next(void)
 {
     app_mode_t prev = g_app.mode;
+    uint32_t now = bsp_millis();
 
     switch (g_app.mode) {
     case MODE_RES:
@@ -497,6 +630,16 @@ static void mode_next(void)
         g_app.freq_duty = 0.0f;
         g_app.freq_have_valid = false;
         g_app.freq_err = ERR_NO_SIGNAL;
+        g_app.freq_enter_ms = now;
+        g_app.freq_last_measure_ms = now;
+        g_app.freq_last_flush_ok_ms = now;
+        g_app.freq_recover_deadline_ms = 0u;
+        g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+        g_app.freq_reset_used_this_entry = false;
+    } else if ((prev == MODE_FREQ) && (g_app.mode != MODE_FREQ)) {
+        g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+        g_app.freq_recover_deadline_ms = 0u;
+        g_app.freq_reset_used_this_entry = false;
     }
     if ((prev == MODE_DIODE) && (g_app.mode != MODE_DIODE)) {
         diode_exit(&g_app.diode_ctx);
@@ -578,7 +721,11 @@ static void build_main_frame(app_ui_frame_t *frame)
                            g_app.cont.beep_on ? "BEEP" : "OPEN");
         }
     } else if (g_app.mode == MODE_VDC) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
+        if (g_app.vdc_ui_sel == VDC_UI_SEL_AUTO) {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: AUTO %s", vdc_active_short_name(&g_app));
+        } else {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
+        }
     } else if (g_app.mode == MODE_FREQ) {
         if (g_app.freq_range_sel == FREQ_RANGE_AUTO) {
             uint8_t active_sel = freq_get_active_range_sel();
@@ -684,18 +831,8 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OK");
         } else if (g_app.freq_err == ERR_OVERRANGE) {
-            if (g_app.freq_have_valid) {
-                uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
-                uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
-                if (duty_i > 100u) {
-                    duty_i = 100u;
-                }
-                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%luHz", (unsigned long)hz_i);
-                (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
-            } else {
-                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OVER");
-                (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
-            }
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OL");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OVER");
         } else {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "NO SIG");
@@ -800,9 +937,10 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
                        (unsigned)g_app.diode.err);
     } else if (g_app.mode == MODE_VDC) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u",
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u %s",
                        (unsigned)mux_get_mode_phys_ch(),
-                       (unsigned)mux_get_volt_phys_ch());
+                       (unsigned)mux_get_volt_phys_ch(),
+                       vdc_active_short_name(&g_app));
         if (g_app.vdc.valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.vdc.raw);
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.vdc.mv_sense);
@@ -904,12 +1042,21 @@ void app_init(void)
     g_app.mode = MODE_RES;
     g_app.view = VIEW_RUN_MAIN;
     g_app.res_range_sel = RES_RANGE_SEL_AUTO;
-    g_app.vdc_range_sel = 0u;
+    g_app.vdc_range_sel = VDC_RANGE_2000MV;
+    g_app.vdc_ui_sel = VDC_UI_SEL_AUTO;
+    g_app.vdc_auto_vote_up = 0u;
+    g_app.vdc_auto_vote_down = 0u;
     g_app.freq_range_sel = FREQ_RANGE_AUTO;
     g_app.freq_hz = 0.0f;
     g_app.freq_duty = 0.0f;
     g_app.freq_have_valid = false;
     g_app.freq_err = ERR_NO_SIGNAL;
+    g_app.freq_enter_ms = now;
+    g_app.freq_last_measure_ms = now;
+    g_app.freq_last_flush_ok_ms = now;
+    g_app.freq_recover_deadline_ms = 0u;
+    g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+    g_app.freq_reset_used_this_entry = false;
 
     g_app.adc_init_err = adc1_init();
     g_app.opamp_init_err = opamp1_init();
@@ -1042,6 +1189,7 @@ void app_ui_tick(void)
     app_err_t err;
 
     app_display_poll();
+    freq_recovery_tick(now);
 
     if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
         if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) && (g_app.mode != MODE_DIODE) && (g_app.mode != MODE_VDC)) {
@@ -1064,8 +1212,10 @@ void app_ui_tick(void)
 
     if (!app_ui_presenter_ready()) {
         g_app.presenter_err = app_ui_presenter_last_err();
-        bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
-        bootdiag_set_stage(BOOT_FAULT);
+        if (g_app.mode != MODE_FREQ) {
+            bootdiag_set_fault(BOOT_FAULT_DISPLAY_INIT);
+            bootdiag_set_stage(BOOT_FAULT);
+        }
         g_app.ui_dirty = true;
         return;
     }
@@ -1079,12 +1229,18 @@ void app_ui_tick(void)
     err = app_ui_presenter_flush(&frame);
     if (err != ERR_OK) {
         g_app.presenter_err = err;
-        bootdiag_set_fault(BOOT_FAULT_UI_FLUSH);
-        bootdiag_set_stage(BOOT_FAULT);
+        if (g_app.mode != MODE_FREQ) {
+            bootdiag_set_fault(BOOT_FAULT_UI_FLUSH);
+            bootdiag_set_stage(BOOT_FAULT);
+        }
         g_app.ui_dirty = true;
         return;
     }
 
+    if (g_app.mode == MODE_FREQ) {
+        g_app.freq_last_flush_ok_ms = now;
+        g_app.freq_recover_state = FREQ_RECOVER_IDLE;
+    }
     g_app.ui_dirty = false;
 }
 
