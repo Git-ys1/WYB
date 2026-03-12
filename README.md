@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.6.0-R1）
+# WYB 提交态固件（T-1.6.1-R2）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -21,13 +21,13 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 第二行：`李浩天`
   - 第三行：`23291043`
 - 2 秒后清屏并进入主 UI。
-- T-1.6.0-R1 微调：第三行学号位图左移，避免右侧贴边与裁切。
+- T-1.6.1-R2 微调：第三行学号位图再次左移微调，避免贴边与裁切。
 
 ## 当前功能状态
-- `RES`：可用（手动四档 + AUTO）。
+- `RES`：可用（手动四档 + AUTO），开机默认档位为 `AUTO`。
 - `CONT`：可用（仅 CONT 模式持续鸣叫）。
 - `DIODE`：可用（方案 A 单向激励）。
-- `FREQ`：主链已冻结，后续仅做模块内热修（profile/CCR 映射/invalid/no-sig 判定）。
+- `FREQ`：主链已冻结，默认档位为 `AUTO`，支持手动档有效范围约束与越档 `OVER` 提示（保留上次稳定值）。
 - `VDC`：保留，`20V` 档仍为已知问题，不在本轮混修。
 
 ## FREQ 热修框架位（已预留）
@@ -38,8 +38,8 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 
 后续频率优化仅允许调整 profile 与 `drv_freq_ic` 模块内判定，不再改主循环或重走新测量路线。
 
-## T-1.6.0-R1 热修范围
-- 仅包含：`boot_splash_bitmap` 版式微调 + FREQ 单链热修。
+## T-1.6.1-R2 热修范围
+- 仅包含：`boot_splash_bitmap` 版式微调 + RES 默认 `AUTO` + FREQ 单链热修。
 - FREQ 仍固定：`PA0(TIM2_CH1) -> TIM2 capture -> BSP ticks -> drv_freq_ic -> app`。
 - 未改主循环、未新增第二显示链、未新增第二频率链。
 

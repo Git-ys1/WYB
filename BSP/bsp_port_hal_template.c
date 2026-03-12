@@ -72,8 +72,8 @@ static const freq_profile_cfg_t k_freq_profile_cfg[BSP_FREQ_PROFILE_COUNT] = {
     [BSP_FREQ_PROFILE_20HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 8u, .no_sig_timeout_ms = 400u, .accum_cycles = 1u},
     [BSP_FREQ_PROFILE_200HZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 4u, .no_sig_timeout_ms = 250u, .accum_cycles = 1u},
     [BSP_FREQ_PROFILE_2KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 1u, .no_sig_timeout_ms = 120u, .accum_cycles = 1u},
-    [BSP_FREQ_PROFILE_20KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 80u, .accum_cycles = 2u},
-    [BSP_FREQ_PROFILE_200KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 40u, .accum_cycles = 4u}
+    [BSP_FREQ_PROFILE_20KHZ] = {.ic_prescaler = TIM_ICPSC_DIV1, .ic_filter = 0u, .no_sig_timeout_ms = 60u, .accum_cycles = 1u},
+    [BSP_FREQ_PROFILE_200KHZ] = {.ic_prescaler = TIM_ICPSC_DIV2, .ic_filter = 0u, .no_sig_timeout_ms = 25u, .accum_cycles = 1u}
 };
 
 static I2C_HandleTypeDef *i2c_handle_from_bus(bsp_i2c_bus_t bus)

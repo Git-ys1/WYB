@@ -59,6 +59,7 @@ struct app_ctx_s {
     uint8_t freq_range_sel;
     float freq_hz;
     float freq_duty;
+    bool freq_have_valid;
     app_err_t freq_err;
 
     bool right_long_fired;
@@ -104,24 +105,7 @@ struct app_ctx_s {
 static app_ctx_t g_app;
 
 static const char *k_vdc_name[VDC_RANGE_COUNT] = {"2000mV", "20V"};
-static const char *k_freq_name[FREQ_RANGE_COUNT] = {"20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
-
-static bsp_freq_profile_t freq_profile_from_sel(uint8_t sel)
-{
-    switch (sel) {
-    case FREQ_RANGE_20HZ:
-        return BSP_FREQ_PROFILE_20HZ;
-    case FREQ_RANGE_200HZ:
-        return BSP_FREQ_PROFILE_200HZ;
-    case FREQ_RANGE_2KHZ:
-        return BSP_FREQ_PROFILE_2KHZ;
-    case FREQ_RANGE_20KHZ:
-        return BSP_FREQ_PROFILE_20KHZ;
-    case FREQ_RANGE_200KHZ:
-    default:
-        return BSP_FREQ_PROFILE_200KHZ;
-    }
-}
+static const char *k_freq_name[FREQ_RANGE_COUNT] = {"AUTO", "20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
 
 static const char *range_name_res(const app_ctx_t *ctx)
 {
@@ -164,10 +148,8 @@ static void range_next_vdc(app_ctx_t *ctx)
 static void range_next_freq(app_ctx_t *ctx)
 {
     ctx->freq_range_sel = (uint8_t)((ctx->freq_range_sel + 1u) % FREQ_RANGE_COUNT);
-    bsp_freq_capture_set_profile(freq_profile_from_sel(ctx->freq_range_sel));
+    freq_set_range_sel(ctx->freq_range_sel);
     freq_start();
-    ctx->freq_hz = 0.0f;
-    ctx->freq_duty = 0.0f;
     ctx->freq_err = ERR_NO_SIGNAL;
 }
 
@@ -333,6 +315,7 @@ static void measure_tick_freq(app_ctx_t *ctx, uint32_t now_ms)
     if (err == ERR_OK) {
         ctx->freq_hz = hz;
         ctx->freq_duty = duty;
+        ctx->freq_have_valid = true;
     }
 
     ctx->ui_dirty = true;
@@ -508,10 +491,11 @@ static void mode_next(void)
         diode_drv_off();
         beep_continuous(false);
         mux_set_mode(MUX_MODE_FREQ);
-        bsp_freq_capture_set_profile(freq_profile_from_sel(g_app.freq_range_sel));
+        freq_set_range_sel(g_app.freq_range_sel);
         freq_start();
         g_app.freq_hz = 0.0f;
         g_app.freq_duty = 0.0f;
+        g_app.freq_have_valid = false;
         g_app.freq_err = ERR_NO_SIGNAL;
     }
     if ((prev == MODE_DIODE) && (g_app.mode != MODE_DIODE)) {
@@ -596,7 +580,13 @@ static void build_main_frame(app_ui_frame_t *frame)
     } else if (g_app.mode == MODE_VDC) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
     } else if (g_app.mode == MODE_FREQ) {
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
+        if (g_app.freq_range_sel == FREQ_RANGE_AUTO) {
+            uint8_t active_sel = freq_get_active_range_sel();
+            const char *active = k_freq_name[(active_sel < FREQ_RANGE_COUNT) ? active_sel : FREQ_RANGE_2KHZ];
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: AUTO %s", active);
+        } else {
+            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "RNG: %s", range);
+        }
     } else if ((g_app.mode == MODE_RES) && (g_app.res_range_sel == RES_RANGE_SEL_AUTO)) {
         const char *locked = measure_res_range_name(g_app.res_auto.locked_range_sel);
         if (measure_res_range_is_exp(g_app.res_auto.locked_range_sel)) {
@@ -693,6 +683,20 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%luHz", (unsigned long)hz_i);
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OK");
+        } else if (g_app.freq_err == ERR_OVERRANGE) {
+            if (g_app.freq_have_valid) {
+                uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
+                uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
+                if (duty_i > 100u) {
+                    duty_i = 100u;
+                }
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%luHz", (unsigned long)hz_i);
+                (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
+            } else {
+                (void)snprintf(frame->line[2], sizeof(frame->line[2]), "OVER");
+                (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
+            }
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OVER");
         } else {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "NO SIG");
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
@@ -820,9 +824,10 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)bsp_freq_get_diag(&diag);
         freq_get_debug_snapshot(&fdbg);
 
-        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE:%u RNG:%s",
+        (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE:%u S:%s A:%s",
                        (unsigned)mux_get_mode_phys_ch(),
-                       k_freq_name[g_app.freq_range_sel % FREQ_RANGE_COUNT]);
+                       k_freq_name[g_app.freq_range_sel % FREQ_RANGE_COUNT],
+                       k_freq_name[freq_get_active_range_sel() % FREQ_RANGE_COUNT]);
         if (cap_ok) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "P:%lu H:%lu",
                            (unsigned long)cap.period_ticks,
@@ -898,11 +903,12 @@ void app_init(void)
 
     g_app.mode = MODE_RES;
     g_app.view = VIEW_RUN_MAIN;
-    g_app.res_range_sel = RES_RANGE_SEL_2K;
+    g_app.res_range_sel = RES_RANGE_SEL_AUTO;
     g_app.vdc_range_sel = 0u;
-    g_app.freq_range_sel = 0u;
+    g_app.freq_range_sel = FREQ_RANGE_AUTO;
     g_app.freq_hz = 0.0f;
     g_app.freq_duty = 0.0f;
+    g_app.freq_have_valid = false;
     g_app.freq_err = ERR_NO_SIGNAL;
 
     g_app.adc_init_err = adc1_init();
@@ -929,6 +935,7 @@ void app_init(void)
     g_app.diode.stat = DIODE_STAT_PROBE;
     g_app.diode.err = ERR_NOT_IMPL;
     g_app.res_auto_active = false;
+    freq_set_range_sel(g_app.freq_range_sel);
     (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
     res_format_display(&g_app.res_binding, &g_app.res_sample, false, false, 0.0f, &g_app.res_disp);
 

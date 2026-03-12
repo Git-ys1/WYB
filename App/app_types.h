@@ -53,7 +53,8 @@ typedef enum {
 } res_range_t;
 
 typedef enum {
-    FREQ_RANGE_20HZ = 0,
+    FREQ_RANGE_AUTO = 0,
+    FREQ_RANGE_20HZ,
     FREQ_RANGE_200HZ,
     FREQ_RANGE_2KHZ,
     FREQ_RANGE_20KHZ,

@@ -6,6 +6,22 @@
 
 #define FREQ_HIST_SIZE 8u
 #define FREQ_INVALID_LIMIT 5u
+#define FREQ_AUTO_DEFAULT_RANGE 3u /* 2kHz */
+#define FREQ_AUTO_VOTE_NEED 2u
+#define FREQ_RANGE_OVER 0xFFu
+
+#define FREQ_RANGE_SEL_AUTO 0u
+#define FREQ_RANGE_SEL_20HZ 1u
+#define FREQ_RANGE_SEL_200HZ 2u
+#define FREQ_RANGE_SEL_2KHZ 3u
+#define FREQ_RANGE_SEL_20KHZ 4u
+#define FREQ_RANGE_SEL_200KHZ 5u
+#define FREQ_RANGE_SEL_COUNT 6u
+
+typedef struct {
+    float min_hz;
+    float max_hz;
+} freq_manual_guard_t;
 
 static float g_hz_hist[FREQ_HIST_SIZE];
 static float g_duty_hist[FREQ_HIST_SIZE];
@@ -14,6 +30,127 @@ static uint8_t g_hist_count;
 static uint8_t g_invalid_count;
 static bool g_capture_start_ok;
 static freq_debug_snapshot_t g_freq_dbg;
+static uint8_t g_selected_range_sel = FREQ_RANGE_SEL_AUTO;
+static uint8_t g_active_range_sel = FREQ_AUTO_DEFAULT_RANGE;
+static uint8_t g_auto_vote;
+static uint8_t g_auto_candidate = FREQ_RANGE_OVER;
+static bool g_overrange;
+
+static const freq_manual_guard_t k_manual_guard[FREQ_RANGE_SEL_COUNT] = {
+    [FREQ_RANGE_SEL_AUTO] = {.min_hz = 0.0f, .max_hz = 0.0f},
+    [FREQ_RANGE_SEL_20HZ] = {.min_hz = 0.0f, .max_hz = 22.0f},
+    [FREQ_RANGE_SEL_200HZ] = {.min_hz = 18.0f, .max_hz = 220.0f},
+    [FREQ_RANGE_SEL_2KHZ] = {.min_hz = 180.0f, .max_hz = 2200.0f},
+    [FREQ_RANGE_SEL_20KHZ] = {.min_hz = 1800.0f, .max_hz = 22000.0f},
+    [FREQ_RANGE_SEL_200KHZ] = {.min_hz = 18000.0f, .max_hz = 220000.0f},
+};
+
+static bsp_freq_profile_t profile_from_active(uint8_t active_range_sel)
+{
+    switch (active_range_sel) {
+    case FREQ_RANGE_SEL_20HZ:
+        return BSP_FREQ_PROFILE_20HZ;
+    case FREQ_RANGE_SEL_200HZ:
+        return BSP_FREQ_PROFILE_200HZ;
+    case FREQ_RANGE_SEL_2KHZ:
+        return BSP_FREQ_PROFILE_2KHZ;
+    case FREQ_RANGE_SEL_20KHZ:
+        return BSP_FREQ_PROFILE_20KHZ;
+    case FREQ_RANGE_SEL_200KHZ:
+        return BSP_FREQ_PROFILE_200KHZ;
+    default:
+        return BSP_FREQ_PROFILE_2KHZ;
+    }
+}
+
+static bool is_manual_range(uint8_t range_sel)
+{
+    return (range_sel >= FREQ_RANGE_SEL_20HZ) && (range_sel <= FREQ_RANGE_SEL_200KHZ);
+}
+
+static void clear_history(void)
+{
+    g_hist_w = 0u;
+    g_hist_count = 0u;
+    g_invalid_count = 0u;
+}
+
+static bool in_manual_range(uint8_t range_sel, float hz)
+{
+    const freq_manual_guard_t *g;
+
+    if (!is_manual_range(range_sel)) {
+        return false;
+    }
+
+    g = &k_manual_guard[range_sel];
+    if (hz <= g->min_hz) {
+        return false;
+    }
+    return hz <= g->max_hz;
+}
+
+static uint8_t auto_target_from_hz(float hz)
+{
+    if (hz <= 0.0f) {
+        return FREQ_RANGE_OVER;
+    }
+    if (hz <= 20.0f) {
+        return FREQ_RANGE_SEL_20HZ;
+    }
+    if (hz <= 200.0f) {
+        return FREQ_RANGE_SEL_200HZ;
+    }
+    if (hz <= 2000.0f) {
+        return FREQ_RANGE_SEL_2KHZ;
+    }
+    if (hz <= 20000.0f) {
+        return FREQ_RANGE_SEL_20KHZ;
+    }
+    if (hz <= 200000.0f) {
+        return FREQ_RANGE_SEL_200KHZ;
+    }
+    return FREQ_RANGE_OVER;
+}
+
+static bool auto_track(float hz)
+{
+    uint8_t target = auto_target_from_hz(hz);
+
+    if (target == FREQ_RANGE_OVER) {
+        g_auto_vote = 0u;
+        g_auto_candidate = FREQ_RANGE_OVER;
+        g_overrange = true;
+        return false;
+    }
+
+    g_overrange = false;
+    if (target == g_active_range_sel) {
+        g_auto_vote = 0u;
+        g_auto_candidate = FREQ_RANGE_OVER;
+        return false;
+    }
+
+    if (g_auto_candidate == target) {
+        if (g_auto_vote < 0xFFu) {
+            g_auto_vote++;
+        }
+    } else {
+        g_auto_candidate = target;
+        g_auto_vote = 1u;
+    }
+
+    if (g_auto_vote < FREQ_AUTO_VOTE_NEED) {
+        return false;
+    }
+
+    g_active_range_sel = target;
+    g_auto_vote = 0u;
+    g_auto_candidate = FREQ_RANGE_OVER;
+    clear_history();
+    bsp_freq_capture_set_profile(profile_from_active(g_active_range_sel));
+    return true;
+}
 
 static void hist_push(float hz, float duty)
 {
@@ -67,14 +204,16 @@ static void hist_average(uint8_t window, float *hz, float *duty)
 
 void freq_start(void)
 {
-    g_hist_w = 0u;
-    g_hist_count = 0u;
-    g_invalid_count = 0u;
+    clear_history();
+    bsp_freq_capture_set_profile(profile_from_active(g_active_range_sel));
     g_capture_start_ok = bsp_freq_capture_start();
     g_freq_dbg.inst_hz = 0.0f;
     g_freq_dbg.inst_duty = 0.0f;
     g_freq_dbg.hist_count = 0u;
     g_freq_dbg.invalid_count = 0u;
+    g_freq_dbg.selected_range_sel = g_selected_range_sel;
+    g_freq_dbg.active_range_sel = g_active_range_sel;
+    g_freq_dbg.overrange = g_overrange;
     g_freq_dbg.capture_start_ok = g_capture_start_ok;
     g_freq_dbg.last_err = g_capture_start_ok ? ERR_OK : ERR_HW_FAIL;
 }
@@ -97,6 +236,9 @@ app_err_t freq_get(float *hz, float *duty_pct)
         }
         g_freq_dbg.invalid_count = g_invalid_count;
         g_freq_dbg.hist_count = g_hist_count;
+        g_freq_dbg.selected_range_sel = g_selected_range_sel;
+        g_freq_dbg.active_range_sel = g_active_range_sel;
+        g_freq_dbg.overrange = g_overrange;
         g_freq_dbg.capture_start_ok = g_capture_start_ok;
         if (!g_capture_start_ok && (g_hist_count == 0u)) {
             g_freq_dbg.last_err = ERR_HW_FAIL;
@@ -115,6 +257,8 @@ app_err_t freq_get(float *hz, float *duty_pct)
 
     inst_hz = (float)cap.tim_clk_hz / (float)cap.period_ticks;
     inst_duty = 100.0f * ((float)cap.high_ticks / (float)cap.period_ticks);
+    g_freq_dbg.inst_hz = inst_hz;
+    g_freq_dbg.inst_duty = inst_duty;
     if (inst_duty < 0.0f) {
         inst_duty = 0.0f;
     }
@@ -122,13 +266,49 @@ app_err_t freq_get(float *hz, float *duty_pct)
         inst_duty = 100.0f;
     }
 
+    if (g_selected_range_sel == FREQ_RANGE_SEL_AUTO) {
+        if (auto_track(inst_hz)) {
+            g_freq_dbg.hist_count = g_hist_count;
+            g_freq_dbg.invalid_count = g_invalid_count;
+            g_freq_dbg.selected_range_sel = g_selected_range_sel;
+            g_freq_dbg.active_range_sel = g_active_range_sel;
+            g_freq_dbg.overrange = g_overrange;
+            g_freq_dbg.capture_start_ok = g_capture_start_ok;
+            g_freq_dbg.last_err = ERR_NO_SIGNAL;
+            return ERR_NO_SIGNAL;
+        }
+        if (g_overrange) {
+            g_freq_dbg.hist_count = g_hist_count;
+            g_freq_dbg.invalid_count = g_invalid_count;
+            g_freq_dbg.selected_range_sel = g_selected_range_sel;
+            g_freq_dbg.active_range_sel = g_active_range_sel;
+            g_freq_dbg.overrange = g_overrange;
+            g_freq_dbg.capture_start_ok = g_capture_start_ok;
+            g_freq_dbg.last_err = ERR_OVERRANGE;
+            return ERR_OVERRANGE;
+        }
+    } else if (!in_manual_range(g_selected_range_sel, inst_hz)) {
+        g_overrange = true;
+        g_freq_dbg.hist_count = g_hist_count;
+        g_freq_dbg.invalid_count = g_invalid_count;
+        g_freq_dbg.selected_range_sel = g_selected_range_sel;
+        g_freq_dbg.active_range_sel = g_active_range_sel;
+        g_freq_dbg.overrange = g_overrange;
+        g_freq_dbg.capture_start_ok = g_capture_start_ok;
+        g_freq_dbg.last_err = ERR_OVERRANGE;
+        return ERR_OVERRANGE;
+    } else {
+        g_overrange = false;
+    }
+
     hist_push(inst_hz, inst_duty);
     window = selected_window(inst_hz);
     hist_average(window, hz, duty_pct);
-    g_freq_dbg.inst_hz = inst_hz;
-    g_freq_dbg.inst_duty = inst_duty;
     g_freq_dbg.hist_count = g_hist_count;
     g_freq_dbg.invalid_count = g_invalid_count;
+    g_freq_dbg.selected_range_sel = g_selected_range_sel;
+    g_freq_dbg.active_range_sel = g_active_range_sel;
+    g_freq_dbg.overrange = g_overrange;
     g_freq_dbg.capture_start_ok = g_capture_start_ok;
     g_freq_dbg.last_err = ERR_OK;
 
@@ -153,5 +333,41 @@ void freq_get_debug_snapshot(freq_debug_snapshot_t *out)
         return;
     }
     *out = g_freq_dbg;
+}
+
+void freq_set_range_sel(uint8_t sel)
+{
+    if (sel >= FREQ_RANGE_SEL_COUNT) {
+        sel = FREQ_RANGE_SEL_AUTO;
+    }
+
+    g_selected_range_sel = sel;
+    g_overrange = false;
+    g_auto_vote = 0u;
+    g_auto_candidate = FREQ_RANGE_OVER;
+
+    if (g_selected_range_sel == FREQ_RANGE_SEL_AUTO) {
+        if (!is_manual_range(g_active_range_sel)) {
+            g_active_range_sel = FREQ_AUTO_DEFAULT_RANGE;
+        }
+    } else {
+        g_active_range_sel = g_selected_range_sel;
+    }
+
+    clear_history();
+    bsp_freq_capture_set_profile(profile_from_active(g_active_range_sel));
+    g_freq_dbg.selected_range_sel = g_selected_range_sel;
+    g_freq_dbg.active_range_sel = g_active_range_sel;
+    g_freq_dbg.overrange = g_overrange;
+}
+
+uint8_t freq_get_active_range_sel(void)
+{
+    return g_active_range_sel;
+}
+
+bool freq_is_overrange(void)
+{
+    return g_overrange;
 }
 
