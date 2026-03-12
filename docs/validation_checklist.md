@@ -69,3 +69,14 @@
 - [ ] `R3F-DEADBAND-01`: 主界面抖动下降，Debug 页仍实时显示原始值。
 - [ ] `R3F-DEADBAND-02`: 档位变化、AUTO 切档、`NO SIG/OL/OVER` 进出可立即刷新。
 - [ ] `R3F-REG-01`: `RES/DIODE/CONT/VDC` 无回归，非 CONT 模式无持续蜂鸣。
+
+## T-1.6.5-R1（VDC 根因锁定 + FREQ 高频收尾）
+- [ ] `R5-VDC-ROOT-01`: README/Checklist 明确写入 20V 漂移根因为 2V 支路污染（R10 + VIN_2V + 钳位）。
+- [ ] `R5-VDC-ROOT-02`: README/Checklist 明确写入非根因：非 170MHz 不足、非 20V 公式首要问题。
+- [ ] `R5-VDC-ROOT-03`: README/Checklist 记录关键证据：断开 R10 后 20V 稳定恢复。
+- [ ] `R5-VDC-PROTECT-01`: VDC 异常仅页面化（OK/OL/MUX BAD/ADC BAD/ERR），不触发 PB12 fault。
+- [ ] `R5-FREQ-CHAIN-01`: 1kHz/50% 下 `IRQ/CCR/P/H/CLK/F/D` 连续有效。
+- [ ] `R5-FREQ-HOP-01`: 直接跳频（1k->10k/20k）不长时间卡在错误档位，主界面不假死。
+- [ ] `R5-FREQ-SWEEP-01`: 缓慢扫频上限不退化，至少维持当前可测能力。
+- [ ] `R5-FREQ-OPEN-01`: 开路可回 `NO SIG`，无假值粘连。
+- [ ] `R5-REG-01`: `RES/DIODE/CONT` 行为无回归，非 CONT 模式无持续蜂鸣。

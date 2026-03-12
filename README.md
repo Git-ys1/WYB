@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.6.2-R3）
+# WYB 提交态固件（T-1.6.5-R1）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -30,6 +30,13 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - `FREQ`：主链已冻结，默认档位为 `AUTO`；手动档越档主值直接显示 `OL`，并增加卡屏两级恢复（先重置显示链，失败后单次软复位）。
 - `VDC`：新增 `AUTO`（默认档），在 `AUTO/2000mV/20V` 之间可切换，自动切档采用迟滞与投票；`20V` 档精度问题仍为已知项。
 
+## T-1.6.5-R1：VDC 根因锁定
+- 当前 `20V` 漂移首要根因已锁定为：`2V` 支路（`R10 + VIN_2V + 钳位`）对 `20V` 支路污染。
+- 已排除作为首要根因的项：`170MHz` 主频不足、`20V` 软件公式本身。
+- 关键实验结论：保持 `20V` 支路不变，断开 `R10=22k` 后，`20V` 档可恢复 `2V~20V` 的稳定显示。
+- 主线策略：本轮保留 `2V+AUTO`，将问题拆分为 `20V correctness` 与 `2V restore`，后续独立处理，不与 FREQ 混修。
+- 保护口径：VDC 异常仅页面化（`OK/OL/MUX BAD/ADC BAD/ERR`），不进入 `Error_Handler`、不触发 `bootdiag fault`。
+
 ## T-1.6.2-R3 高频减负口径
 - 时钟维持 `HSI 16MHz + PLL_NONE`，不做 170MHz 升频。
 - TIM2 捕获减负：`CH1=IC中断`、`CH2=IC非中断轮询读取`，回调只处理 CH1。
@@ -41,6 +48,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - `VDC`: `1 LSD`
   - `RES`: `max(0.2%, 1 LSD)`
 - 立即刷新条件：档位变化、AUTO 切档、状态/错误变化、`NO SIG/OL/OVER` 进出。
+
+## T-1.6.5-R1：FREQ 高频收尾口径
+- 主链不变：`PA0(TIM2_CH1) -> TIM2 capture -> bsp_capture(ticks) -> drv_freq_ic -> app`。
+- 仅模块内热修：`profile` 参数、`drv_freq_ic` 判定与 AUTO 跳频收敛，不改主循环。
+- profile 参数更新：
+  - `20Hz`: `no_sig_timeout_ms=600`, `accum=4`
+  - `200Hz`: `no_sig_timeout_ms=300`, `accum=2`
+  - `2kHz`: `120`, `1`
+  - `20kHz`: `60`, `1`
+  - `200kHz`: `30`, `1`
+- AUTO 在“明显越当前活动档”时允许快速升档，减少大步跳频时卡在错误档位的停留时间。
+- 无效/无信号判定按当前活动档消费不同 invalid 门限，不再统一固定阈值。
 
 ## FREQ 热修框架位（已预留）
 `bsp_freq_capture_set_profile()` 对每档位支持：

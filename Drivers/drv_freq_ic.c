@@ -5,7 +5,7 @@
 #include "../BSP/bsp.h"
 
 #define FREQ_HIST_SIZE 8u
-#define FREQ_INVALID_LIMIT 5u
+#define FREQ_INVALID_LIMIT_MAX 10u
 #define FREQ_AUTO_DEFAULT_RANGE 3u /* 2kHz */
 #define FREQ_AUTO_VOTE_NEED 2u
 #define FREQ_RANGE_OVER 0xFFu
@@ -90,6 +90,24 @@ static bool in_manual_range(uint8_t range_sel, float hz)
     return hz <= g->max_hz;
 }
 
+static uint8_t invalid_limit_for_active(uint8_t active_range_sel)
+{
+    switch (active_range_sel) {
+    case FREQ_RANGE_SEL_20HZ:
+        return 8u;
+    case FREQ_RANGE_SEL_200HZ:
+        return 7u;
+    case FREQ_RANGE_SEL_2KHZ:
+        return 5u;
+    case FREQ_RANGE_SEL_20KHZ:
+        return 4u;
+    case FREQ_RANGE_SEL_200KHZ:
+        return 3u;
+    default:
+        return 5u;
+    }
+}
+
 static uint8_t auto_target_from_hz(float hz)
 {
     if (hz <= 0.0f) {
@@ -113,6 +131,29 @@ static uint8_t auto_target_from_hz(float hz)
     return FREQ_RANGE_OVER;
 }
 
+static bool should_fast_upshift(uint8_t active_range_sel, uint8_t target_range_sel, float hz)
+{
+    float active_max;
+
+    if (!is_manual_range(active_range_sel) || !is_manual_range(target_range_sel)) {
+        return false;
+    }
+    if (target_range_sel <= active_range_sel) {
+        return false;
+    }
+    if (target_range_sel > (uint8_t)(active_range_sel + 1u)) {
+        return true;
+    }
+
+    active_max = k_manual_guard[active_range_sel].max_hz;
+    if (active_max <= 0.0f) {
+        return false;
+    }
+
+    /* Large jumps should escape current profile quickly to reduce apparent freeze. */
+    return hz > (active_max * 1.30f);
+}
+
 static bool auto_track(float hz)
 {
     uint8_t target = auto_target_from_hz(hz);
@@ -129,6 +170,15 @@ static bool auto_track(float hz)
         g_auto_vote = 0u;
         g_auto_candidate = FREQ_RANGE_OVER;
         return false;
+    }
+
+    if (should_fast_upshift(g_active_range_sel, target, hz)) {
+        g_active_range_sel = target;
+        g_auto_vote = 0u;
+        g_auto_candidate = FREQ_RANGE_OVER;
+        clear_history();
+        bsp_freq_capture_set_profile(profile_from_active(g_active_range_sel));
+        return true;
     }
 
     if (g_auto_candidate == target) {
@@ -224,6 +274,7 @@ app_err_t freq_get(float *hz, float *duty_pct)
     float inst_hz;
     float inst_duty;
     uint8_t window;
+    uint8_t invalid_limit;
 
     if ((hz == NULL) || (duty_pct == NULL)) {
         return ERR_INVALID_ARG;
@@ -233,6 +284,10 @@ app_err_t freq_get(float *hz, float *duty_pct)
         (cap.tim_clk_hz == 0u) || (cap.high_ticks > cap.period_ticks)) {
         if (g_invalid_count < 0xFFu) {
             g_invalid_count++;
+        }
+        invalid_limit = invalid_limit_for_active(g_active_range_sel);
+        if (invalid_limit > FREQ_INVALID_LIMIT_MAX) {
+            invalid_limit = FREQ_INVALID_LIMIT_MAX;
         }
         g_freq_dbg.invalid_count = g_invalid_count;
         g_freq_dbg.hist_count = g_hist_count;
@@ -244,7 +299,7 @@ app_err_t freq_get(float *hz, float *duty_pct)
             g_freq_dbg.last_err = ERR_HW_FAIL;
             return ERR_HW_FAIL;
         }
-        if ((g_invalid_count < FREQ_INVALID_LIMIT) && (g_hist_count > 0u)) {
+        if ((g_invalid_count < invalid_limit) && (g_hist_count > 0u)) {
             hist_average(FREQ_HIST_SIZE, hz, duty_pct);
             g_freq_dbg.last_err = ERR_OK;
             return ERR_OK;
