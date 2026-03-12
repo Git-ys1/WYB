@@ -126,6 +126,35 @@ static uint32_t cap_high_from_ccr(uint32_t ccr1, uint32_t ccr2)
 #endif
 }
 
+static void cap_decode_ticks(uint32_t ccr1, uint32_t ccr2, uint32_t *period_ticks, uint32_t *high_ticks)
+{
+    uint32_t p;
+    uint32_t h;
+
+    if ((period_ticks == 0) || (high_ticks == 0)) {
+        return;
+    }
+
+    p = cap_period_from_ccr(ccr1, ccr2);
+    h = cap_high_from_ccr(ccr1, ccr2);
+    if ((p > 0u) && (h <= p)) {
+        *period_ticks = p;
+        *high_ticks = h;
+        return;
+    }
+
+    /* Fallback decode for boards whose CCR period/high wiring is opposite. */
+#if FREQ_SWAP_CCR_MAP
+    p = ccr1;
+    h = ccr2;
+#else
+    p = ccr2;
+    h = ccr1;
+#endif
+    *period_ticks = p;
+    *high_ticks = h;
+}
+
 static void tim2_capture_reset_snapshot(void)
 {
     __disable_irq();
@@ -133,6 +162,9 @@ static void tim2_capture_reset_snapshot(void)
     g_cap_high_ticks = 0u;
     g_cap_valid = 0u;
     g_cap_last_ms = HAL_GetTick();
+    g_cap_period_accum_ticks = 0u;
+    g_cap_high_accum_ticks = 0u;
+    g_cap_accum_count = 0u;
     __enable_irq();
 }
 
@@ -146,6 +178,7 @@ static void tim2_capture_stop(void)
 static bool tim2_capture_start(void)
 {
     if (g_cap_started) {
+        tim2_capture_reset_snapshot();
         return true;
     }
 
@@ -675,6 +708,9 @@ bool bsp_freq_capture_start(void)
     g_invalid_h_gt_p_count = 0u;
     ok = tim2_capture_start();
     g_capture_start_ok = ok ? 1u : 0u;
+    if (!ok) {
+        tim2_capture_reset_snapshot();
+    }
     return ok;
 }
 
@@ -750,8 +786,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
     ccr2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
     g_cap_last_ccr1 = ccr1;
     g_cap_last_ccr2 = ccr2;
-    period_ticks = cap_period_from_ccr(ccr1, ccr2);
-    high_ticks = cap_high_from_ccr(ccr1, ccr2);
+    cap_decode_ticks(ccr1, ccr2, &period_ticks, &high_ticks);
 
     if ((period_ticks > 0u) && (high_ticks <= period_ticks)) {
         uint8_t accum_target = g_freq_accum_cycles;

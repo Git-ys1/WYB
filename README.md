@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.5.5-R1）
+# WYB 提交态固件（T-1.6.0-R1）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -21,6 +21,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - 第二行：`李浩天`
   - 第三行：`23291043`
 - 2 秒后清屏并进入主 UI。
+- T-1.6.0-R1 微调：第三行学号位图左移，避免右侧贴边与裁切。
 
 ## 当前功能状态
 - `RES`：可用（手动四档 + AUTO）。
@@ -36,6 +37,11 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - `accum_cycles`
 
 后续频率优化仅允许调整 profile 与 `drv_freq_ic` 模块内判定，不再改主循环或重走新测量路线。
+
+## T-1.6.0-R1 热修范围
+- 仅包含：`boot_splash_bitmap` 版式微调 + FREQ 单链热修。
+- FREQ 仍固定：`PA0(TIM2_CH1) -> TIM2 capture -> BSP ticks -> drv_freq_ic -> app`。
+- 未改主循环、未新增第二显示链、未新增第二频率链。
 
 ## 文档入口
 - 提交态真相冻结：`docs/T-1.5.5_truth_freeze.md`

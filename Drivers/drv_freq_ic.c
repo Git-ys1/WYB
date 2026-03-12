@@ -98,6 +98,10 @@ app_err_t freq_get(float *hz, float *duty_pct)
         g_freq_dbg.invalid_count = g_invalid_count;
         g_freq_dbg.hist_count = g_hist_count;
         g_freq_dbg.capture_start_ok = g_capture_start_ok;
+        if (!g_capture_start_ok && (g_hist_count == 0u)) {
+            g_freq_dbg.last_err = ERR_HW_FAIL;
+            return ERR_HW_FAIL;
+        }
         if ((g_invalid_count < FREQ_INVALID_LIMIT) && (g_hist_count > 0u)) {
             hist_average(FREQ_HIST_SIZE, hz, duty_pct);
             g_freq_dbg.last_err = ERR_OK;
