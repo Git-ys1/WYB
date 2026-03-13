@@ -174,6 +174,54 @@ static const char *range_name_freq(const app_ctx_t *ctx)
     return k_freq_name[ctx->freq_range_sel % FREQ_RANGE_COUNT];
 }
 
+static void format_freq_main_value(float hz, char *out, size_t out_sz, const char **unit_out)
+{
+    uint32_t hz_i;
+    uint32_t whole;
+    uint32_t frac;
+    uint32_t khz_x100;
+    uint32_t khz_x10;
+
+    if ((out == NULL) || (out_sz == 0u) || (unit_out == NULL)) {
+        return;
+    }
+
+    if (hz <= 0.0f) {
+        hz_i = 0u;
+    } else {
+        hz_i = (uint32_t)(hz + 0.5f);
+    }
+
+    if (hz_i < 1000u) {
+        (void)snprintf(out, out_sz, "%lu", (unsigned long)hz_i);
+        *unit_out = "Hz";
+        return;
+    }
+
+    if (hz_i < 10000u) {
+        whole = hz_i / 1000u;
+        frac = hz_i % 1000u;
+        (void)snprintf(out, out_sz, "%lu.%03lu",
+                       (unsigned long)whole,
+                       (unsigned long)frac);
+    } else if (hz_i < 100000u) {
+        khz_x100 = (hz_i + 5u) / 10u; /* round to 0.01kHz (10Hz) */
+        whole = khz_x100 / 100u;
+        frac = khz_x100 % 100u;
+        (void)snprintf(out, out_sz, "%lu.%02lu",
+                       (unsigned long)whole,
+                       (unsigned long)frac);
+    } else {
+        khz_x10 = (hz_i + 50u) / 100u; /* round to 0.1kHz (100Hz) */
+        whole = khz_x10 / 10u;
+        frac = khz_x10 % 10u;
+        (void)snprintf(out, out_sz, "%lu.%01lu",
+                       (unsigned long)whole,
+                       (unsigned long)frac);
+    }
+    *unit_out = "kHz";
+}
+
 static const char *range_name_cont(const app_ctx_t *ctx)
 {
     (void)ctx;
@@ -979,12 +1027,14 @@ static void build_main_frame(app_ui_frame_t *frame)
         }
     } else if (g_app.mode == MODE_FREQ) {
         if (g_app.freq_err == ERR_OK) {
-            uint32_t hz_i = (uint32_t)(g_app.freq_hz + 0.5f);
+            char fbuf[16];
+            const char *funit = "Hz";
             uint32_t duty_i = (uint32_t)(g_app.freq_duty + 0.5f);
             if (duty_i > 100u) {
                 duty_i = 100u;
             }
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%luHz", (unsigned long)hz_i);
+            format_freq_main_value(g_app.freq_hz, fbuf, sizeof(fbuf), &funit);
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "F:%s %s", fbuf, funit);
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:%lu%%", (unsigned long)duty_i);
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: OK");
         } else if (g_app.freq_err == ERR_OVERRANGE) {
@@ -1101,16 +1151,19 @@ static void build_debug_frame(app_ui_frame_t *frame)
         if (g_app.vdc.valid) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:%u", (unsigned)g_app.vdc.raw);
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :%lu", (unsigned long)g_app.vdc.mv_sense);
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:%lu", (unsigned long)g_app.vdc.vin_mv);
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:%lu", (unsigned long)g_app.vdc.vdda_mv);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VR20:%lu VC20:%lu",
+                           (unsigned long)g_app.vdc.vin_raw_mv,
+                           (unsigned long)g_app.vdc.vin_corr_mv);
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VIN:%lu", (unsigned long)g_app.vdc.vin_mv);
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "VDDA:%lu", (unsigned long)g_app.vdc.vdda_mv);
         } else {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "RAW:----");
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "MV :----");
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:----");
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VDDA:----");
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VR20:---- VC20:----");
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "VIN:----");
+            (void)snprintf(frame->line[6], sizeof(frame->line[6]), "VDDA:----");
         }
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s", vdc_status_name(g_app.vdc.status));
-        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u", (unsigned)g_app.vdc.err);
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "STAT:%s", vdc_status_name(g_app.vdc.status));
     } else if (g_app.mode == MODE_FREQ) {
         bsp_capture_t cap = {0};
         bsp_freq_diag_t diag = {0};

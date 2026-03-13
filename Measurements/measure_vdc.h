@@ -29,6 +29,8 @@ typedef struct {
     vdc_range_t range;
     uint16_t raw;
     uint32_t mv_sense;
+    uint32_t vin_raw_mv;
+    uint32_t vin_corr_mv;
     uint32_t vin_mv;
     uint32_t vdda_mv;
     vdc_status_t status;
@@ -53,6 +55,8 @@ typedef struct {
 #define VDC_20V_OFFSET_MV 0u
 #define VDC_2V_OL_MV 2000u
 #define VDC_20V_OL_MV 20000u
+#define VDC_20V_POST170_SEG_BREAK_MV 7400
+#define VDC_20V_POST170_OL_GUARD_MV 19990u
 
 static inline const char *vdc_status_name(vdc_status_t status)
 {
@@ -102,6 +106,19 @@ static inline uint32_t vdc_convert_mv(vdc_range_t range, uint32_t mv_sense)
     return mv_sense + VDC_2V_OFFSET_MV;
 }
 
+static inline int32_t vdc20_post170_correct_mv(int32_t raw_mv)
+{
+    int64_t acc;
+
+    if (raw_mv <= VDC_20V_POST170_SEG_BREAK_MV) {
+        acc = 9983ll * (int64_t)raw_mv + 1100000ll + 5000ll;
+        return (int32_t)(acc / 10000ll);
+    }
+
+    acc = 9319ll * (int64_t)raw_mv + 5920000ll + 5000ll;
+    return (int32_t)(acc / 10000ll);
+}
+
 static inline void vdc_set_result(vdc_ctx_t *ctx,
                                   uint32_t now_ms,
                                   vdc_status_t status,
@@ -118,6 +135,8 @@ static inline void vdc_set_result(vdc_ctx_t *ctx,
     if (!valid) {
         ctx->result.raw = 0u;
         ctx->result.mv_sense = 0u;
+        ctx->result.vin_raw_mv = 0u;
+        ctx->result.vin_corr_mv = 0u;
         ctx->result.vin_mv = 0u;
         ctx->result.vdda_mv = VDC_FALLBACK_VDDA_MV;
     }
@@ -197,8 +216,11 @@ static inline app_err_t vdc_tick(vdc_ctx_t *ctx, uint32_t now_ms)
     app_err_t err;
     uint32_t vdda_mv;
     uint32_t vin_mv;
+    uint32_t vin_raw_mv;
+    uint32_t vin_corr_mv;
     uint16_t raw = 0u;
     uint32_t mv_sense = 0u;
+    int32_t vin_corr_i32;
 
     if (ctx == NULL) {
         return ERR_INVALID_ARG;
@@ -247,17 +269,29 @@ static inline app_err_t vdc_tick(vdc_ctx_t *ctx, uint32_t now_ms)
         vdda_mv = VDC_FALLBACK_VDDA_MV;
     }
 
-    vin_mv = vdc_convert_mv(ctx->range, mv_sense);
+    vin_raw_mv = vdc_convert_mv(ctx->range, mv_sense);
+    vin_corr_mv = vin_raw_mv;
+    if (ctx->range == VDC_RANGE_20V) {
+        vin_corr_i32 = vdc20_post170_correct_mv((int32_t)vin_raw_mv);
+        if (vin_corr_i32 < 0) {
+            vin_corr_i32 = 0;
+        }
+        vin_corr_mv = (uint32_t)vin_corr_i32;
+    }
+    vin_mv = vin_corr_mv;
     ctx->result.valid = true;
     ctx->result.raw = raw;
     ctx->result.mv_sense = mv_sense;
+    ctx->result.vin_raw_mv = vin_raw_mv;
+    ctx->result.vin_corr_mv = vin_corr_mv;
     ctx->result.vin_mv = vin_mv;
     ctx->result.vdda_mv = vdda_mv;
     ctx->result.err = ERR_OK;
     ctx->result.last_update_ms = now_ms;
 
     if (((ctx->range == VDC_RANGE_2000MV) && (vin_mv >= VDC_2V_OL_MV)) ||
-        ((ctx->range == VDC_RANGE_20V) && (vin_mv >= VDC_20V_OL_MV))) {
+        ((ctx->range == VDC_RANGE_20V) &&
+         ((vin_corr_mv >= VDC_20V_POST170_OL_GUARD_MV) || (vin_mv >= VDC_20V_OL_MV)))) {
         ctx->result.status = VDC_STAT_OL;
     } else {
         ctx->result.status = VDC_STAT_OK;
