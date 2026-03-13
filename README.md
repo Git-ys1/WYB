@@ -42,6 +42,20 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 超时策略：`20nF=5ms`、`2uF=50ms`、`200uF=500ms`，超时显示 `OL`，不中断主循环。
 - 页面策略：仅新增 CAP 分支，不重构 `presenter/display_service` 主结构。
 
+## T-1.7.9-R1（CAP 严格状态机）
+- CAP 测量从“阻塞单次”升级为“循环状态机”：`IDLE_SAFE -> PRE_DISCHARGE -> WAIT_EMPTY -> ARM_CHARGE -> CHARGING -> CAPTURED -> HOLD_RESULT -> PRE_DISCHARGE`，含 `TIMEOUT/ERROR` 恢复分支。
+- 安全态冻结：`DISCH=高`、三路 `CAP_CHG_*` 全部 Hi-Z；退出 CAP 或异常时强制回安全态。
+- 判定口径固定：
+  - 放空：`ADC<=16` 连续 3 次
+  - 达阈值：`ADC>=2587` 连续 2 次
+  - 常数：`k=0.9989824477`
+  - 公式：`C = cycles / (SystemCoreClock * R * k)`
+- 分档超时：
+  - 放空超时：`10ms/50ms/500ms`（20nF/2uF/200uF）
+  - 充电超时：`5ms/50ms/500ms`（20nF/2uF/200uF）
+  - HOLD：`50ms/100ms/200ms`
+- 显示策略：主页面保留上一次有效值，不因 timeout/error 清空主值；状态显示 `DISCH/MEAS/READY/OL/ERR`。
+
 ## T-1.7.6-R1（主界面显示减法微调）
 - 本轮仅调整主界面文本输出，不改测量、模式切换、按键与 debug 页面逻辑。
 - 主界面底部隐藏 `L:DBG` 提示（LEFT/debug 代码保留）。

@@ -27,6 +27,7 @@
 #define UI_REFRESH_MS 200u
 #define DEBUG_ADC_REFRESH_MS 250u
 #define MEAS_PERIOD_MS 40u
+#define CAP_MEAS_PERIOD_MS 1u
 #define CONT_MEAS_PERIOD_MS 25u
 #define BEEP_FREQ_HZ 2700u
 #define DIODE_VF_DIRTY_DELTA_MV 8u
@@ -772,20 +773,22 @@ static void measure_tick_cap(app_ctx_t *ctx, uint32_t now_ms)
     cap_measure_once(&ctx->cap);
 
     if ((ctx->view == VIEW_RUN_DEBUG) ||
+        (ctx->cap.sm_state != prev.sm_state) ||
         (ctx->cap.stat != prev.stat) ||
         (ctx->cap.over != prev.over) ||
+        (ctx->cap.timeout != prev.timeout) ||
+        (ctx->cap.empty_timeout != prev.empty_timeout) ||
         (ctx->cap.valid != prev.valid) ||
         (ctx->cap.range != prev.range) ||
-        (ctx->cap.err != prev.err) ||
-        (ctx->cap.adc_raw_last != prev.adc_raw_last)) {
+        (ctx->cap.err != prev.err)) {
         ctx->ui_dirty = true;
         return;
     }
 
     if (ctx->cap.valid) {
-        float threshold_pf = app_absf(prev.value_pf) * 0.01f;
-        if (threshold_pf < 1.0f) {
-            threshold_pf = 1.0f;
+        float threshold_pf = app_absf(prev.value_pf) * 0.002f;
+        if (threshold_pf < 0.5f) {
+            threshold_pf = 0.5f;
         }
         if (app_absf(ctx->cap.value_pf - prev.value_pf) >= threshold_pf) {
             ctx->ui_dirty = true;
@@ -970,11 +973,11 @@ static void format_cap_value_line(const cap_result_t *cap, char *out, size_t out
         return;
     }
 
-    if (cap->stat == CAP_STAT_OL) {
-        (void)snprintf(out, out_sz, "C: OL");
-        return;
-    }
-    if ((cap->stat != CAP_STAT_OK) || (cap->valid == 0u)) {
+    if (cap->valid == 0u) {
+        if (cap->stat == CAP_STAT_OL) {
+            (void)snprintf(out, out_sz, "C: OL");
+            return;
+        }
         (void)snprintf(out, out_sz, "C: ----");
         return;
     }
@@ -1229,33 +1232,28 @@ static void build_debug_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
                        (unsigned)g_app.diode.err);
     } else if (g_app.mode == MODE_CAP) {
+        (void)snprintf(frame->line[2], sizeof(frame->line[2]), "SM:%s ADC:%u",
+                       cap_sm_state_name(g_app.cap.sm_state),
+                       (unsigned)g_app.cap.adc_raw_last);
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CYC:%lu TH:%u",
+                       (unsigned long)g_app.cap.elapsed_cycles,
+                       (unsigned)g_app.cap.adc_threshold);
         if (g_app.cap.valid) {
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ADC:%u THR:%u",
-                           (unsigned)g_app.cap.adc_raw_last,
-                           (unsigned)g_app.cap.adc_threshold);
-            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CYC:%lu",
-                           (unsigned long)g_app.cap.elapsed_cycles);
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "PF:%lu NF:%lu",
                            (unsigned long)(g_app.cap.value_pf + 0.5f),
                            (unsigned long)(g_app.cap.value_nf + 0.5f));
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "UF:%lu.%02lu",
-                           (unsigned long)g_app.cap.value_uf,
-                           (unsigned long)((uint32_t)(g_app.cap.value_uf * 100.0f + 0.5f) % 100u));
         } else {
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ADC:%u THR:%u",
-                           (unsigned)g_app.cap.adc_raw_last,
-                           (unsigned)g_app.cap.adc_threshold);
-            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CYC:%lu",
-                           (unsigned long)g_app.cap.elapsed_cycles);
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "CAP:----");
-            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RNG:%s",
-                           cap_range_name((cap_range_t)g_app.cap_range_sel));
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "PF:---- NF:----");
         }
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s",
-                       cap_stat_name(g_app.cap.stat));
-        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u O:%u",
-                       (unsigned)g_app.cap.err,
+        (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RNG:%s",
+                       cap_range_name((cap_range_t)g_app.cap_range_sel));
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "TO:%u ET:%u O:%u",
+                       (unsigned)g_app.cap.timeout,
+                       (unsigned)g_app.cap.empty_timeout,
                        (unsigned)g_app.cap.over);
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "STAT:%s E:%u",
+                       cap_stat_name(g_app.cap.stat),
+                       (unsigned)g_app.cap.err);
     } else if (g_app.mode == MODE_VDC) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u %s",
                        (unsigned)mux_get_mode_phys_ch(),
@@ -1405,10 +1403,12 @@ void app_init(void)
     memset(&g_app.diode, 0, sizeof(g_app.diode));
     g_app.diode.stat = DIODE_STAT_PROBE;
     g_app.diode.err = ERR_NOT_IMPL;
-    cap_result_reset(&g_app.cap);
+    memset(&g_app.cap, 0, sizeof(g_app.cap));
     g_app.cap.range = (cap_range_t)g_app.cap_range_sel;
     g_app.cap.stat = CAP_STAT_PROBE;
     g_app.cap.err = ERR_NOT_IMPL;
+    g_app.cap.adc_threshold = 2587u;
+    g_app.cap.sm_state = CAP_SM_IDLE_SAFE;
     cap_set_range((cap_range_t)g_app.cap_range_sel);
     g_app.res_auto_active = false;
     freq_set_range_sel(g_app.freq_range_sel);
@@ -1501,6 +1501,8 @@ void app_measure_tick(void)
         period_ms = CONT_MEAS_PERIOD_MS;
     } else if (g_app.mode == MODE_VDC) {
         period_ms = VDC_SAMPLE_PERIOD_MS;
+    } else if (g_app.mode == MODE_CAP) {
+        period_ms = CAP_MEAS_PERIOD_MS;
     }
 
     if ((int32_t)(now - g_app.next_meas_ms) < 0) {
