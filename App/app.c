@@ -1017,6 +1017,11 @@ static void format_cont_value_line(const cont_result_t *cont, char *out, size_t 
         return;
     }
 
+    if (cont->r_est_ohm > 200.0f) {
+        (void)snprintf(out, out_sz, "R: OL");
+        return;
+    }
+
     if (cont->r_est_ohm < 100.0f) {
         x10 = (uint32_t)(cont->r_est_ohm * 10.0f + 0.5f);
         (void)snprintf(out, out_sz, "R: %lu.%01luOhm",
