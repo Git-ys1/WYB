@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.6.5-R1）
+# WYB 提交态固件（T-1.6.6-main）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -36,6 +36,12 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 关键实验结论：保持 `20V` 支路不变，断开 `R10=22k` 后，`20V` 档可恢复 `2V~20V` 的稳定显示。
 - 主线策略：本轮保留 `2V+AUTO`，将问题拆分为 `20V correctness` 与 `2V restore`，后续独立处理，不与 FREQ 混修。
 - 保护口径：VDC 异常仅页面化（`OK/OL/MUX BAD/ADC BAD/ERR`），不进入 `Error_Handler`、不触发 `bootdiag fault`。
+
+## T-1.6.6-main：主线冻结口径
+- 本分支仅做 VDC 口径冻结文档更新，不做功能代码修改。
+- 主线继续保持 `HSI 16MHz + PLL_NONE`，不在主线做 170MHz 迁移。
+- `2V+AUTO` 保留，后续 2V restore 另开任务，不在本分支混修。
+- 170MHz + FREQ 高频收尾仅在实验分支推进，验证通过后再评估回灌。
 
 ## T-1.6.2-R3 高频减负口径
 - 时钟维持 `HSI 16MHz + PLL_NONE`，不做 170MHz 升频。

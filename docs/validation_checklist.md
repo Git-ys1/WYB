@@ -80,3 +80,8 @@
 - [ ] `R5-FREQ-SWEEP-01`: 缓慢扫频上限不退化，至少维持当前可测能力。
 - [ ] `R5-FREQ-OPEN-01`: 开路可回 `NO SIG`，无假值粘连。
 - [ ] `R5-REG-01`: `RES/DIODE/CONT` 行为无回归，非 CONT 模式无持续蜂鸣。
+
+## T-1.6.6-main（主线仅口径冻结）
+- [ ] `R6M-DOC-01`: README 明确主线仅做 VDC 根因/策略冻结，无功能代码改动。
+- [ ] `R6M-DOC-02`: README 明确 170MHz 迁移仅在实验分支推进，不回灌主线。
+- [ ] `R6M-DIFF-01`: 本分支代码 diff 仅文档文件（README/checklist）。
