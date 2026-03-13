@@ -56,6 +56,19 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
   - HOLD：`50ms/100ms/200ms`
 - 显示策略：主页面保留上一次有效值，不因 timeout/error 清空主值；状态显示 `DISCH/MEAS/READY/OL/ERR`。
 
+## T-1.7.10-R1（200R 低阻校正 + CONT ON/OFF 修正）
+- 仅对 `RES 200Ω` 档新增低阻校正，`2k/20k/200k` 完全不改。
+- 校正公式（仅 200Ω 档）：
+  - `raw<=20Ω`: `bias=8.05Ω`
+  - `20<raw<100Ω`: `bias=8.05*(100-raw)/80`
+  - `raw>=100Ω`: `bias=0`
+  - `corr=max(raw-bias, 0)`
+- `CONT` 继续复用 `RES 200Ω` 测量链，蜂鸣判定改为基于校正后阻值，并采用迟滞+投票：
+  - 进入 ON：`<=12Ω`
+  - 退出 ON：`>=18Ω`
+  - 连续命中 `3` 次才切换
+- `CONT` 主界面改为显示当前阻值与 `ON/OFF`，不再显示 `BEEP` 文案。
+
 ## T-1.7.6-R1（主界面显示减法微调）
 - 本轮仅调整主界面文本输出，不改测量、模式切换、按键与 debug 页面逻辑。
 - 主界面底部隐藏 `L:DBG` 提示（LEFT/debug 代码保留）。

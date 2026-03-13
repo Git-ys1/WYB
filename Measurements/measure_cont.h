@@ -34,9 +34,9 @@ typedef struct {
     res_sample_t sample;
 } cont_result_t;
 
-#define CONT_ENTER_EST_OHM 10.0f
-#define CONT_EXIT_EST_OHM 13.0f
-#define CONT_VOTE_N 2u
+#define CONT_ENTER_EST_OHM 12.0f
+#define CONT_EXIT_EST_OHM 18.0f
+#define CONT_VOTE_N 3u
 #define CONT_SETTLE_MS 40u
 
 static inline void cont_reset(cont_ctx_t *ctx)
@@ -59,7 +59,7 @@ static inline const char *cont_get_state_name(cont_state_t state)
     case CONT_STATE_OPEN:
         return "OPEN";
     case CONT_STATE_BEEP_ON:
-        return "BEEP";
+        return "ON";
     case CONT_STATE_BEEP_OFF_WAIT:
         return "WAIT";
     case CONT_STATE_ERR:

@@ -55,6 +55,26 @@ static const range_cfg_t k_range_cfg[RES_RANGE_SEL_COUNT] = {
 static uint8_t s_last_mode_phys_ch = 0xFFu;
 static uint8_t s_last_res_mux_range = 0xFFu;
 
+static float res_low_200_correct_ohm(float raw_r_ohm)
+{
+    float bias_ohm;
+    float corr_r_ohm;
+
+    if (raw_r_ohm <= 20.0f) {
+        bias_ohm = 8.05f;
+    } else if (raw_r_ohm < 100.0f) {
+        bias_ohm = 8.05f * (100.0f - raw_r_ohm) / 80.0f;
+    } else {
+        bias_ohm = 0.0f;
+    }
+
+    corr_r_ohm = raw_r_ohm - bias_ohm;
+    if (corr_r_ohm < 0.0f) {
+        corr_r_ohm = 0.0f;
+    }
+    return corr_r_ohm;
+}
+
 static void sample_reset(res_sample_t *out)
 {
     if (out == NULL) {
@@ -181,6 +201,7 @@ app_err_t res_acquire_sample(uint8_t range_sel, res_sample_t *s)
 app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_calc_ohm)
 {
     float denom_mv;
+    float raw_r_ohm;
     const range_cfg_t *cfg;
 
     if ((s == NULL) || (r_calc_ohm == NULL) || (range_sel >= RES_RANGE_SEL_COUNT)) {
@@ -200,6 +221,10 @@ app_err_t res_estimate_rx(uint8_t range_sel, const res_sample_t *s, float *r_cal
         return ERR_OVERRANGE;
     }
 
-    *r_calc_ohm = cfg->param.rref_eff_ohm * cfg->param.gain_corr * ((float)s->mv / denom_mv);
+    raw_r_ohm = cfg->param.rref_eff_ohm * cfg->param.gain_corr * ((float)s->mv / denom_mv);
+    if (range_sel == RES_RANGE_SEL_200) {
+        raw_r_ohm = res_low_200_correct_ohm(raw_r_ohm);
+    }
+    *r_calc_ohm = raw_r_ohm;
     return ERR_OK;
 }

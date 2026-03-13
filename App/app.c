@@ -235,7 +235,7 @@ static void format_freq_main_value(float hz, char *out, size_t out_sz, const cha
 static const char *range_name_cont(const app_ctx_t *ctx)
 {
     (void)ctx;
-    return "BEEP";
+    return "200R";
 }
 
 static const char *range_name_diode(const app_ctx_t *ctx)
@@ -1004,6 +1004,30 @@ static void format_cap_value_line(const cap_result_t *cap, char *out, size_t out
                    (unsigned long)(uf_x100 % 100u));
 }
 
+static void format_cont_value_line(const cont_result_t *cont, char *out, size_t out_sz)
+{
+    uint32_t x10;
+
+    if ((cont == NULL) || (out == NULL) || (out_sz == 0u)) {
+        return;
+    }
+
+    if (!cont->sample_valid || !cont->calc_ok) {
+        (void)snprintf(out, out_sz, "R: ----");
+        return;
+    }
+
+    if (cont->r_est_ohm < 100.0f) {
+        x10 = (uint32_t)(cont->r_est_ohm * 10.0f + 0.5f);
+        (void)snprintf(out, out_sz, "R: %lu.%01luOhm",
+                       (unsigned long)(x10 / 10u),
+                       (unsigned long)(x10 % 10u));
+    } else {
+        (void)snprintf(out, out_sz, "R: %luOhm",
+                       (unsigned long)(cont->r_est_ohm + 0.5f));
+    }
+}
+
 static void build_main_frame(app_ui_frame_t *frame)
 {
     const mode_desc_t *md = active_mode_desc();
@@ -1023,13 +1047,6 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MEAS ERR");
         } else {
             (void)snprintf(frame->line[1], sizeof(frame->line[1]), "PROBE...");
-        }
-    } else if (g_app.mode == MODE_CONT) {
-        if (!g_app.cont.sample_valid) {
-            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: PROBE...");
-        } else {
-            (void)snprintf(frame->line[1], sizeof(frame->line[1]), "CONT: %s",
-                           g_app.cont.beep_on ? "BEEP" : "OPEN");
         }
     } else if (g_app.mode == MODE_VDC) {
         if (g_app.vdc_ui_sel == VDC_UI_SEL_AUTO) {
@@ -1062,14 +1079,18 @@ static void build_main_frame(app_ui_frame_t *frame)
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "%s", g_app.res_disp.line_value);
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "%s", g_app.res_disp.line_stat);
     } else if (g_app.mode == MODE_CONT) {
-        const char *state = cont_get_state_name(g_app.cont.state);
+        format_cont_value_line(&g_app.cont, frame->line[2], sizeof(frame->line[2]));
         if (!g_app.cont.sample_valid) {
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "STAT: PROBE");
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: PROBE");
+        } else if (g_app.cont.state == CONT_STATE_ERR) {
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: ERR");
+        } else if (g_app.cont.state == CONT_STATE_BEEP_OFF_WAIT) {
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: WAIT");
         } else {
-            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "STAT: %s", state);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s",
+                           g_app.cont.beep_on ? "ON" : "OFF");
         }
-        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "BEEP: %s", g_app.cont.beep_on ? "ON" : "OFF");
-        (void)snprintf(frame->line[4], sizeof(frame->line[4]), "CONT MODE");
+        (void)snprintf(frame->line[4], sizeof(frame->line[4]), "OUT: %s", g_app.cont.beep_on ? "ON" : "OFF");
     } else if (g_app.mode == MODE_DIODE) {
         if (g_app.diode.stat == DIODE_STAT_OK) {
             (void)snprintf(frame->line[2], sizeof(frame->line[2]), "Vf=%lu.%03luV",
@@ -1205,7 +1226,7 @@ static void build_debug_frame(app_ui_frame_t *frame)
         } else {
             (void)snprintf(frame->line[5], sizeof(frame->line[5]), "CONT_EST:----");
         }
-        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "BEEP:%s V%u/%u",
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "ONOFF:%s V%u/%u",
                        g_app.cont.beep_on ? "ON" : "OFF",
                        (unsigned)g_app.cont.vote_enter,
                        (unsigned)g_app.cont.vote_exit);
