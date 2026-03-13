@@ -54,8 +54,9 @@ static uint32_t g_oled_nack_count;
 static uint32_t g_oled_timeout_count;
 static bsp_freq_profile_t g_freq_profile;
 
-#define I2C2_TIMING_100KHZ_16MHZ 0x20303E5Du
-#define I2C2_TIMING_400KHZ_16MHZ 0x0010061Au
+/* I2C2 kernel clock is forced to HSI16 in SystemClock_Config() on 170MHz branch. */
+#define I2C2_TIMING_100KHZ_HSI16 0x20303E5Du
+#define I2C2_TIMING_400KHZ_HSI16 0x0010061Au
 #define I2C2_RECOVERY_PULSES 9u
 #define I2C2_RECOVERY_DELAY_NOP 64u
 #define SOFT_I2C_DELAY_NOP 96u
@@ -423,7 +424,7 @@ bool bsp_oled_bus_set_mode(bsp_oled_bus_mode_t mode)
     }
 
     i2c2_bus_to_af4();
-    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_16MHZ)) {
+    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_HSI16)) {
         return false;
     }
     g_oled_bus_mode = BSP_OLED_BUS_HW_I2C2;
@@ -479,8 +480,8 @@ void bsp_init(void)
     (void)tim2_capture_apply_profile(g_freq_profile);
 
 #if BSP_I2C2_FAST_400K
-    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_400KHZ_16MHZ)) {
-        (void)i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_16MHZ);
+    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_400KHZ_HSI16)) {
+        (void)i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_HSI16);
         bsp_debug_log("I2C2 FAST FAIL -> 100K");
     } else {
         bsp_debug_log("I2C2 FAST 400K");
@@ -633,7 +634,7 @@ bool bsp_i2c2_bus_recover(void)
 bool bsp_i2c2_reinit_100k(void)
 {
     i2c2_bus_to_af4();
-    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_16MHZ)) {
+    if (!i2c_retime_and_init(&hi2c2, I2C2_TIMING_100KHZ_HSI16)) {
         return false;
     }
     g_oled_bus_mode = BSP_OLED_BUS_HW_I2C2;

@@ -1,4 +1,4 @@
-# WYB 提交态固件（T-1.6.5-R1）
+# WYB 实验固件（T-1.6.6-170MHz）
 
 当前分支为提交态冻结版本，目标是保持单一主链路：`HAL + superloop + 单写者显示 + 单一输入/蜂鸣器/FREQ链路`。
 
@@ -36,6 +36,17 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 关键实验结论：保持 `20V` 支路不变，断开 `R10=22k` 后，`20V` 档可恢复 `2V~20V` 的稳定显示。
 - 主线策略：本轮保留 `2V+AUTO`，将问题拆分为 `20V correctness` 与 `2V restore`，后续独立处理，不与 FREQ 混修。
 - 保护口径：VDC 异常仅页面化（`OK/OL/MUX BAD/ADC BAD/ERR`），不进入 `Error_Handler`、不触发 `bootdiag fault`。
+
+## T-1.6.6-R1 实验线（170MHz + FREQ 高频收尾）
+- 本分支用于 170MHz 频率实验，不回灌主线，主线仍维持 16MHz 冻结口径。
+- 时钟迁移：`SYSCLK=170MHz`（HSI->PLL，Range1 Boost，Flash Latency 7）。
+- I2C2：内核时钟强制 `HSI16`，I2C timing 走 `HSI16` 常量口径，避免随 SYSCLK 变化失配。
+- FREQ 主链不变：`PA0(TIM2_CH1) -> TIM2 capture -> bsp_capture(ticks) -> drv_freq_ic -> app`。
+- FREQ 收尾重点：
+  - 高频档减负：`accum_cycles` 高频保持 1；
+  - 大步跳频：AUTO 允许快速升档；
+  - 手动越档：立即 `OL` 且清空历史窗口；
+  - 无效捕获：高频段连续无效时快速丢弃旧窗口，等待新样本。
 
 ## T-1.6.2-R3 高频减负口径
 - 时钟维持 `HSI 16MHz + PLL_NONE`，不做 170MHz 升频。

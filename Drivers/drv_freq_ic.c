@@ -151,7 +151,7 @@ static bool should_fast_upshift(uint8_t active_range_sel, uint8_t target_range_s
     }
 
     /* Large jumps should escape current profile quickly to reduce apparent freeze. */
-    return hz > (active_max * 1.30f);
+    return hz > (active_max * 1.60f);
 }
 
 static bool auto_track(float hz)
@@ -299,6 +299,10 @@ app_err_t freq_get(float *hz, float *duty_pct)
             g_freq_dbg.last_err = ERR_HW_FAIL;
             return ERR_HW_FAIL;
         }
+        if ((g_active_range_sel >= FREQ_RANGE_SEL_20KHZ) && (g_invalid_count >= 2u)) {
+            /* High-range invalid capture must not keep stale history for long. */
+            clear_history();
+        }
         if ((g_invalid_count < invalid_limit) && (g_hist_count > 0u)) {
             hist_average(FREQ_HIST_SIZE, hz, duty_pct);
             g_freq_dbg.last_err = ERR_OK;
@@ -344,6 +348,7 @@ app_err_t freq_get(float *hz, float *duty_pct)
         }
     } else if (!in_manual_range(g_selected_range_sel, inst_hz)) {
         g_overrange = true;
+        clear_history();
         g_freq_dbg.hist_count = g_hist_count;
         g_freq_dbg.invalid_count = g_invalid_count;
         g_freq_dbg.selected_range_sel = g_selected_range_sel;

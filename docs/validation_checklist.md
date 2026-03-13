@@ -80,3 +80,13 @@
 - [ ] `R5-FREQ-SWEEP-01`: 缓慢扫频上限不退化，至少维持当前可测能力。
 - [ ] `R5-FREQ-OPEN-01`: 开路可回 `NO SIG`，无假值粘连。
 - [ ] `R5-REG-01`: `RES/DIODE/CONT` 行为无回归，非 CONT 模式无持续蜂鸣。
+
+## T-1.6.6-R1（170MHz FREQ 实验线）
+- [ ] `R6E-CLOCK-01`: 170MHz 启动正常（Range1 Boost + Flash Latency 7），OLED 正常。
+- [ ] `R6E-I2C-01`: I2C2 在 170MHz 下稳定（内核 HSI16 + timing 常量口径），无总线异常。
+- [ ] `R6E-FREQ-01`: 1kHz/50% 下 `IRQ/CCR/P/H/CLK/F/D` 连续有效。
+- [ ] `R6E-FREQ-02`: 高频点 `10k/20k/50k` 可测，直接跳频不长时间卡屏。
+- [ ] `R6E-FREQ-03`: 手动档越档立即 `OL`，且不会沿用旧平滑历史。
+- [ ] `R6E-FREQ-04`: AUTO 对大步跳频可快速升档，不长时间停留错误档位。
+- [ ] `R6E-FREQ-05`: 高范围无效捕获时可快速丢弃旧窗口并恢复。
+- [ ] `R6E-REG-01`: `RES/DIODE/CONT/VDC` 行为无回归，非 CONT 模式无持续蜂鸣。
