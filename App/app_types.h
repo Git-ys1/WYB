@@ -11,6 +11,7 @@ typedef enum {
     MODE_FREQ,
     MODE_CONT,
     MODE_DIODE,
+    MODE_CAP,
     MODE_COUNT
 } app_mode_t;
 

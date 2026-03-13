@@ -15,6 +15,7 @@
 #include "../Measurements/measure_cont.h"
 #include "../Measurements/measure_diode.h"
 #include "../Measurements/measure_vdc.h"
+#include "../Measurements/measure_cap.h"
 #include "../Measurements/res_afe_diag.h"
 #include "../Measurements/res_display_fmt.h"
 #include "app_bootdiag.h"
@@ -80,6 +81,7 @@ struct app_ctx_s {
     uint8_t vdc_auto_vote_up;
     uint8_t vdc_auto_vote_down;
     uint8_t freq_range_sel;
+    uint8_t cap_range_sel;
     float freq_hz;
     float freq_duty;
     bool freq_have_valid;
@@ -134,6 +136,7 @@ struct app_ctx_s {
     bool vdc_shown_inited;
     diode_ctx_t diode_ctx;
     diode_latched_result_t diode;
+    cap_result_t cap;
     float res_shown_r_ohm;
     uint8_t res_shown_range_sel;
     uint8_t res_shown_locked_sel;
@@ -153,6 +156,7 @@ static app_ctx_t g_app;
 static const char *k_vdc_name[VDC_RANGE_COUNT] = {"2000mV", "20V"};
 static const char *k_vdc_active_short[VDC_RANGE_COUNT] = {"2V", "20V"};
 static const char *k_freq_name[FREQ_RANGE_COUNT] = {"AUTO", "20Hz", "200Hz", "2kHz", "20kHz", "200kHz"};
+static const char *k_cap_name[CAP_RANGE_COUNT] = {"20nF", "2uF", "200uF"};
 
 static const char *range_name_res(const app_ctx_t *ctx)
 {
@@ -172,6 +176,11 @@ static const char *vdc_active_short_name(const app_ctx_t *ctx)
 static const char *range_name_freq(const app_ctx_t *ctx)
 {
     return k_freq_name[ctx->freq_range_sel % FREQ_RANGE_COUNT];
+}
+
+static const char *range_name_cap(const app_ctx_t *ctx)
+{
+    return k_cap_name[ctx->cap_range_sel % CAP_RANGE_COUNT];
 }
 
 static void format_freq_main_value(float hz, char *out, size_t out_sz, const char **unit_out)
@@ -267,6 +276,12 @@ static void range_next_freq(app_ctx_t *ctx)
 static void range_next_noop(app_ctx_t *ctx)
 {
     (void)ctx;
+}
+
+static void range_next_cap(app_ctx_t *ctx)
+{
+    ctx->cap_range_sel = (uint8_t)((ctx->cap_range_sel + 1u) % CAP_RANGE_COUNT);
+    cap_set_range((cap_range_t)ctx->cap_range_sel);
 }
 
 static float app_absf(float value)
@@ -748,6 +763,36 @@ static void measure_tick_cont(app_ctx_t *ctx, uint32_t now_ms)
     ctx->ui_dirty = true;
 }
 
+static void measure_tick_cap(app_ctx_t *ctx, uint32_t now_ms)
+{
+    cap_result_t prev;
+
+    (void)now_ms;
+    prev = ctx->cap;
+    cap_measure_once(&ctx->cap);
+
+    if ((ctx->view == VIEW_RUN_DEBUG) ||
+        (ctx->cap.stat != prev.stat) ||
+        (ctx->cap.over != prev.over) ||
+        (ctx->cap.valid != prev.valid) ||
+        (ctx->cap.range != prev.range) ||
+        (ctx->cap.err != prev.err) ||
+        (ctx->cap.adc_raw_last != prev.adc_raw_last)) {
+        ctx->ui_dirty = true;
+        return;
+    }
+
+    if (ctx->cap.valid) {
+        float threshold_pf = app_absf(prev.value_pf) * 0.01f;
+        if (threshold_pf < 1.0f) {
+            threshold_pf = 1.0f;
+        }
+        if (app_absf(ctx->cap.value_pf - prev.value_pf) >= threshold_pf) {
+            ctx->ui_dirty = true;
+        }
+    }
+}
+
 static const mode_desc_t k_mode_desc[MODE_COUNT] = {
     [MODE_VDC] = {
         .title = "VDC",
@@ -778,6 +823,12 @@ static const mode_desc_t k_mode_desc[MODE_COUNT] = {
         .range_name_fn = range_name_diode,
         .range_next_fn = range_next_noop,
         .measure_fn = measure_tick_diode
+    },
+    [MODE_CAP] = {
+        .title = "CAP",
+        .range_name_fn = range_name_cap,
+        .range_next_fn = range_next_cap,
+        .measure_fn = measure_tick_cap
     }
 };
 
@@ -808,6 +859,9 @@ static void mode_next(void)
         g_app.mode = MODE_DIODE;
         break;
     case MODE_DIODE:
+        g_app.mode = MODE_CAP;
+        break;
+    case MODE_CAP:
     default:
         g_app.mode = MODE_RES;
         break;
@@ -852,6 +906,15 @@ static void mode_next(void)
     if ((prev != MODE_DIODE) && (g_app.mode == MODE_DIODE)) {
         diode_enter(&g_app.diode_ctx);
     }
+    if ((prev == MODE_CAP) && (g_app.mode != MODE_CAP)) {
+        cap_leave();
+    }
+    if ((prev != MODE_CAP) && (g_app.mode == MODE_CAP)) {
+        mux_set_mode(MUX_MODE_CAP);
+        adc1_mark_input_path_changed();
+        cap_enter();
+        cap_set_range((cap_range_t)g_app.cap_range_sel);
+    }
 }
 
 static void toggle_debug_view(void)
@@ -895,6 +958,47 @@ static void format_rcalc_line(char *out, size_t out_sz, bool valid, float r_calc
     (void)snprintf(out, out_sz, "RCALC:%lu.%01lu",
                    (unsigned long)(scaled / 10u),
                    (unsigned long)(scaled % 10u));
+}
+
+static void format_cap_value_line(const cap_result_t *cap, char *out, size_t out_sz)
+{
+    uint32_t pf_x10;
+    uint32_t nf_x100;
+    uint32_t uf_x100;
+
+    if ((out == NULL) || (out_sz == 0u) || (cap == NULL)) {
+        return;
+    }
+
+    if (cap->stat == CAP_STAT_OL) {
+        (void)snprintf(out, out_sz, "C: OL");
+        return;
+    }
+    if ((cap->stat != CAP_STAT_OK) || (cap->valid == 0u)) {
+        (void)snprintf(out, out_sz, "C: ----");
+        return;
+    }
+
+    if (cap->value_pf < 1000.0f) {
+        pf_x10 = (uint32_t)(cap->value_pf * 10.0f + 0.5f);
+        (void)snprintf(out, out_sz, "C:%lu.%01lu pF",
+                       (unsigned long)(pf_x10 / 10u),
+                       (unsigned long)(pf_x10 % 10u));
+        return;
+    }
+
+    if (cap->value_pf < 1000000.0f) {
+        nf_x100 = (uint32_t)(cap->value_pf / 10.0f + 0.5f); /* nF * 100 */
+        (void)snprintf(out, out_sz, "C:%lu.%02lu nF",
+                       (unsigned long)(nf_x100 / 100u),
+                       (unsigned long)(nf_x100 % 100u));
+        return;
+    }
+
+    uf_x100 = (uint32_t)(cap->value_pf / 10000.0f + 0.5f); /* uF * 100 */
+    (void)snprintf(out, out_sz, "C:%lu.%02lu uF",
+                   (unsigned long)(uf_x100 / 100u),
+                   (unsigned long)(uf_x100 % 100u));
 }
 
 static void build_main_frame(app_ui_frame_t *frame)
@@ -1046,6 +1150,17 @@ static void build_main_frame(app_ui_frame_t *frame)
             (void)snprintf(frame->line[3], sizeof(frame->line[3]), "D:--%%");
             (void)snprintf(frame->line[4], sizeof(frame->line[4]), "STAT: NO SIG");
         }
+    } else if (g_app.mode == MODE_CAP) {
+        format_cap_value_line(&g_app.cap, frame->line[2], sizeof(frame->line[2]));
+        (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s",
+                       cap_stat_name(g_app.cap.stat));
+        if (g_app.cap.valid) {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "ADC:%u CYC:%lu",
+                           (unsigned)g_app.cap.adc_raw_last,
+                           (unsigned long)g_app.cap.elapsed_cycles);
+        } else {
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "ADC:---- CYC:----");
+        }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
@@ -1143,6 +1258,34 @@ static void build_debug_frame(app_ui_frame_t *frame)
         }
         (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u",
                        (unsigned)g_app.diode.err);
+    } else if (g_app.mode == MODE_CAP) {
+        if (g_app.cap.valid) {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ADC:%u THR:%u",
+                           (unsigned)g_app.cap.adc_raw_last,
+                           (unsigned)g_app.cap.adc_threshold);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CYC:%lu",
+                           (unsigned long)g_app.cap.elapsed_cycles);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "PF:%lu NF:%lu",
+                           (unsigned long)(g_app.cap.value_pf + 0.5f),
+                           (unsigned long)(g_app.cap.value_nf + 0.5f));
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "UF:%lu.%02lu",
+                           (unsigned long)g_app.cap.value_uf,
+                           (unsigned long)((uint32_t)(g_app.cap.value_uf * 100.0f + 0.5f) % 100u));
+        } else {
+            (void)snprintf(frame->line[2], sizeof(frame->line[2]), "ADC:%u THR:%u",
+                           (unsigned)g_app.cap.adc_raw_last,
+                           (unsigned)g_app.cap.adc_threshold);
+            (void)snprintf(frame->line[3], sizeof(frame->line[3]), "CYC:%lu",
+                           (unsigned long)g_app.cap.elapsed_cycles);
+            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "CAP:----");
+            (void)snprintf(frame->line[5], sizeof(frame->line[5]), "RNG:%s",
+                           cap_range_name((cap_range_t)g_app.cap_range_sel));
+        }
+        (void)snprintf(frame->line[6], sizeof(frame->line[6]), "STAT:%s",
+                       cap_stat_name(g_app.cap.stat));
+        (void)snprintf(frame->line[7], sizeof(frame->line[7]), "ERR:%u O:%u",
+                       (unsigned)g_app.cap.err,
+                       (unsigned)g_app.cap.over);
     } else if (g_app.mode == MODE_VDC) {
         (void)snprintf(frame->line[1], sizeof(frame->line[1]), "MODE_CH:%u VOLT:%u %s",
                        (unsigned)mux_get_mode_phys_ch(),
@@ -1257,6 +1400,7 @@ void app_init(void)
     g_app.vdc_auto_vote_up = 0u;
     g_app.vdc_auto_vote_down = 0u;
     g_app.freq_range_sel = FREQ_RANGE_AUTO;
+    g_app.cap_range_sel = CAP_RANGE_2U;
     g_app.freq_hz = 0.0f;
     g_app.freq_duty = 0.0f;
     g_app.freq_have_valid = false;
@@ -1291,6 +1435,11 @@ void app_init(void)
     memset(&g_app.diode, 0, sizeof(g_app.diode));
     g_app.diode.stat = DIODE_STAT_PROBE;
     g_app.diode.err = ERR_NOT_IMPL;
+    cap_result_reset(&g_app.cap);
+    g_app.cap.range = (cap_range_t)g_app.cap_range_sel;
+    g_app.cap.stat = CAP_STAT_PROBE;
+    g_app.cap.err = ERR_NOT_IMPL;
+    cap_set_range((cap_range_t)g_app.cap_range_sel);
     g_app.res_auto_active = false;
     freq_set_range_sel(g_app.freq_range_sel);
     (void)measure_res_get_binding(g_app.res_range_sel, &g_app.res_binding);
@@ -1402,7 +1551,9 @@ void app_ui_tick(void)
     freq_recovery_tick(now);
 
     if ((int32_t)(now - g_app.next_debug_adc_ms) >= 0) {
-        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) && (g_app.mode != MODE_DIODE) && (g_app.mode != MODE_VDC)) {
+        if ((g_app.mode != MODE_RES) && (g_app.mode != MODE_CONT) &&
+            (g_app.mode != MODE_DIODE) && (g_app.mode != MODE_VDC) &&
+            (g_app.mode != MODE_CAP)) {
             ui_update_debug_adc_sample();
         }
         g_app.next_debug_adc_ms = now + DEBUG_ADC_REFRESH_MS;

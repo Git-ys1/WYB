@@ -10,7 +10,7 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 ## 提交态冻结口径
 - 显示链路：`app -> presenter -> app_display_service -> oled_smoke`（唯一 flush 写者）。
 - 频率链路：`PA0(TIM2_CH1) -> TIM2 IC -> bsp_capture(ticks) -> drv_freq_ic -> app`。
-- 模式映射：`MODE CH0=VOLTAGE, CH1=RES/CONT, CH2=DIODE, CH3=FREQ`。
+- 模式映射：`MODE CH0=VOLTAGE, CH1=RES/CONT, CH2=DIODE, CH3=FREQ/CAP`。
 - 蜂鸣器：`PB1`，active-low（`Low=ON`, `High=OFF`），正式链路仅此一条。
 - 二极管激励：`PB0`，`ON=推挽高`，`OFF=Analog/Hi-Z`。
 - 输入：`RIGHT` 为正式功能键，`LEFT` 为调试页开关（可通过编译开关关闭）。
@@ -29,6 +29,18 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - `DIODE`：可用（方案 A 单向激励）。
 - `FREQ`：主链已冻结，默认档位为 `AUTO`；手动档越档主值直接显示 `OL`，并增加卡屏两级恢复（先重置显示链，失败后单次软复位）。
 - `VDC`：新增 `AUTO`（默认档），在 `AUTO/2000mV/20V` 之间可切换，自动切档采用迟滞与投票；`20V` 档精度问题仍为已知项。
+- `CAP`：新增 RC 充电计时 + ADC 阈值法（三档：`20nF/2uF/200uF`），模式接入后复用现有页面风格显示主值/单位/量程/状态。
+
+## T-1.7.5-R1（CAP 基础版，RC+ADC 阈值法）
+- 硬件控制冻结：
+  - `PE3=CAP_CHG_20N`（R=100k）
+  - `PE4=CAP_CHG_2U`（R=10k）
+  - `PE5=CAP_CHG_200U`（R=1k）
+  - `PE6=DISCH`（高=放电导通，低=释放）
+- 阈值固定：`ADC=2587/4095`，常数 `k=0.9989824477`。
+- 核心公式：`C = cycles / (SystemCoreClock * R * k)`，计时基准 `DWT->CYCCNT`。
+- 超时策略：`20nF=5ms`、`2uF=50ms`、`200uF=500ms`，超时显示 `OL`，不中断主循环。
+- 页面策略：仅新增 CAP 分支，不重构 `presenter/display_service` 主结构。
 
 ## T-1.6.5-R1：VDC 根因锁定
 - 当前 `20V` 漂移首要根因已锁定为：`2V` 支路（`R10 + VIN_2V + 钳位`）对 `20V` 支路污染。
