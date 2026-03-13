@@ -117,3 +117,14 @@
 - [ ] `R75-CAP-06`: CAP 调试页可见 `ADC/THR/CYC/STAT`，可用于阈值与计时核对。
 - [ ] `R75-CAP-07`: 连续切换 `RES->DIODE->CAP->FREQ->RES` 无黑屏、无卡死。
 - [ ] `R75-REG-01`: `RES/DIODE/CONT/FREQ/VDC` 行为无回归。
+
+## T-1.7.6-R1（主界面显示减法微调）
+- [ ] `R76-FOOTER-01`: 主界面底部不再显示 `L:DBG`。
+- [ ] `R76-RES-01`: `RES` 主界面仅保留 `FUNC/RANGE/R/STAT`，无 `MV/RAW` 辅助行。
+- [ ] `R76-VDC-01`: `VDC` 主界面仅保留 `FUNC/RANGE/V/STAT`，无 `VIN/MV` 辅助行。
+- [ ] `R76-CAP-01`: `CAP` 主界面仅保留 `FUNC/RANGE/C/STAT`，无 `ADC/CYC` 辅助行。
+- [ ] `R76-FREQ-01`: `FREQ` 主界面保留 `FUNC/RANGE/F/D/STAT`，不增加调试辅助行。
+- [ ] `R76-DIODE-01`: `DIODE` 主界面不显示 `MV/RAW` 辅助行。
+- [ ] `R76-CONT-01`: `CONT` 页面保持当前行为与显示不变。
+- [ ] `R76-DBG-01`: LEFT 进入/退出 debug 仍可用，debug 页内容不变。
+- [ ] `R76-REG-01`: 编译通过，模式切换无文字重叠/残影/错位回归。

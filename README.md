@@ -42,6 +42,17 @@ F:\CodeForge\STM32CubeIDE_2.1.0\STM32CubeIDE\stm32cubeidec.exe --launcher.suppre
 - 超时策略：`20nF=5ms`、`2uF=50ms`、`200uF=500ms`，超时显示 `OL`，不中断主循环。
 - 页面策略：仅新增 CAP 分支，不重构 `presenter/display_service` 主结构。
 
+## T-1.7.6-R1（主界面显示减法微调）
+- 本轮仅调整主界面文本输出，不改测量、模式切换、按键与 debug 页面逻辑。
+- 主界面底部隐藏 `L:DBG` 提示（LEFT/debug 代码保留）。
+- 主界面字段收敛：
+  - `RES`：`FUNC / RANGE / R / STAT`
+  - `VDC`：`FUNC / RANGE / V / STAT`
+  - `CAP`：`FUNC / RANGE / C / STAT`
+  - `FREQ`：`FUNC / RANGE / F / D / STAT`（`D` 保留）
+  - `DIODE`：`FUNC / 主值 / STAT`（去掉 `MV/RAW` 辅助行）
+  - `CONT`：保持现状，不改显示内容
+
 ## T-1.6.5-R1：VDC 根因锁定
 - 当前 `20V` 漂移首要根因已锁定为：`2V` 支路（`R10 + VIN_2V + 钳位`）对 `20V` 支路污染。
 - 已排除作为首要根因的项：`170MHz` 主频不足、`20V` 软件公式本身。

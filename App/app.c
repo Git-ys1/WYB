@@ -1005,7 +1005,6 @@ static void build_main_frame(app_ui_frame_t *frame)
 {
     const mode_desc_t *md = active_mode_desc();
     const char *range = md->range_name_fn(&g_app);
-    char line[22];
 
     memset(frame, 0, sizeof(*frame));
 
@@ -1059,14 +1058,6 @@ static void build_main_frame(app_ui_frame_t *frame)
     if (g_app.mode == MODE_RES) {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "%s", g_app.res_disp.line_value);
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "%s", g_app.res_disp.line_stat);
-        if (g_app.res_sample.valid) {
-            (void)snprintf(line, sizeof(line), "MV:%lu RAW:%u",
-                           (unsigned long)g_app.res_sample.mv,
-                           (unsigned)g_app.res_sample.raw_u16);
-        } else {
-            (void)snprintf(line, sizeof(line), "MV:---- RAW:----");
-        }
-        (void)snprintf(frame->line[4], sizeof(frame->line[4]), "%s", line);
     } else if (g_app.mode == MODE_CONT) {
         const char *state = cont_get_state_name(g_app.cont.state);
         if (!g_app.cont.sample_valid) {
@@ -1092,13 +1083,6 @@ static void build_main_frame(app_ui_frame_t *frame)
         }
 
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s", diode_stat_name(g_app.diode.stat));
-        if (g_app.diode.valid) {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:%lu RAW:%u",
-                           (unsigned long)g_app.diode.mv,
-                           (unsigned)g_app.diode.raw_u16);
-        } else {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "MV:---- RAW:----");
-        }
     } else if (g_app.mode == MODE_VDC) {
         if (g_app.vdc.status == VDC_STAT_OK) {
             if (g_app.vdc.range == VDC_RANGE_2000MV) {
@@ -1122,13 +1106,6 @@ static void build_main_frame(app_ui_frame_t *frame)
         }
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s",
                        vdc_status_name(g_app.vdc.status));
-        if (g_app.vdc.valid) {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:%lu MV:%lu",
-                           (unsigned long)g_app.vdc.vin_mv,
-                           (unsigned long)g_app.vdc.mv_sense);
-        } else {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "VIN:---- MV:----");
-        }
     } else if (g_app.mode == MODE_FREQ) {
         if (g_app.freq_err == ERR_OK) {
             char fbuf[16];
@@ -1154,19 +1131,12 @@ static void build_main_frame(app_ui_frame_t *frame)
         format_cap_value_line(&g_app.cap, frame->line[2], sizeof(frame->line[2]));
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT: %s",
                        cap_stat_name(g_app.cap.stat));
-        if (g_app.cap.valid) {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "ADC:%u CYC:%lu",
-                           (unsigned)g_app.cap.adc_raw_last,
-                           (unsigned long)g_app.cap.elapsed_cycles);
-        } else {
-            (void)snprintf(frame->line[4], sizeof(frame->line[4]), "ADC:---- CYC:----");
-        }
     } else {
         (void)snprintf(frame->line[2], sizeof(frame->line[2]), "VALUE: READY");
         (void)snprintf(frame->line[3], sizeof(frame->line[3]), "STAT : READY");
     }
 
-    (void)snprintf(frame->line[7], sizeof(frame->line[7]), "R:RNG/MODE L:DBG");
+    frame->line[7][0] = '\0';
 }
 
 static void build_debug_frame(app_ui_frame_t *frame)
